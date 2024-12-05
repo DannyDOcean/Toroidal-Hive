@@ -1,0 +1,77 @@
+# Import necessary libraries
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from datasets import load_dataset
+from ultralytics import YOLO
+
+# ----------------------------------------------
+# Input Stage: Data Embedding using Falcon Mamba
+# ----------------------------------------------
+# Load the tokenizer and model for Falcon Mamba 7B
+tokenizer_mamba = AutoTokenizer.from_pretrained("tiiuae/falcon-mamba-7b")
+model_mamba = AutoModelForCausalLM.from_pretrained("tiiuae/falcon-mamba-7b")
+
+# Example input for text embedding
+input_text = "Question: How many hours in one day? Answer: "
+input_ids = tokenizer_mamba(input_text, return_tensors="pt").input_ids
+
+# Generate embeddings for input
+mamba_outputs = model_mamba.generate(input_ids)
+print("Input Embeddings:", tokenizer_mamba.decode(mamba_outputs[0]))
+
+# ----------------------------------------------
+# Hidden Layers: YOLOv8 for Visual Data Processing
+# ----------------------------------------------
+# Load the YOLOv8 model for feature extraction
+yolo_model = YOLO("Ultralytics/YOLOv8")
+source = 'http://images.cocodataset.org/val2017/000000039769.jpg'
+
+# Perform object detection and extract features
+yolo_results = yolo_model.predict(source=source, save=True)
+print("YOLO Object Detection Results:", yolo_results)
+
+# ----------------------------------------------
+# Hidden Layers: Self-Regulation with Self-RAG
+# ----------------------------------------------
+# Load the tokenizer and model for Self-RAG
+tokenizer_selfrag = AutoTokenizer.from_pretrained("selfrag/selfrag_llama2_7b")
+model_selfrag = AutoModelForCausalLM.from_pretrained("selfrag/selfrag_llama2_7b")
+
+# Example for Self-RAG input
+input_selfrag = "Reflect on the accuracy of the statement: The sky is green."
+input_ids_selfrag = tokenizer_selfrag(input_selfrag, return_tensors="pt").input_ids
+
+# Generate a reflective response
+selfrag_outputs = model_selfrag.generate(input_ids_selfrag)
+print("Self-RAG Reflective Output:", tokenizer_selfrag.decode(selfrag_outputs[0]))
+
+# ----------------------------------------------
+# Output Stage: Sentient-Like Reasoning
+# ----------------------------------------------
+# Load the Meta-Llama model for reasoning and response generation
+tokenizer_meta_llama = AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+model_meta_llama = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.2-1B")
+
+# Example reasoning input
+reasoning_input = "What are the ethical implications of AI consciousness?"
+input_ids_meta_llama = tokenizer_meta_llama(reasoning_input, return_tensors="pt").input_ids
+
+# Generate a thoughtful output
+meta_llama_outputs = model_meta_llama.generate(input_ids_meta_llama)
+print("Output Reasoning:", tokenizer_meta_llama.decode(meta_llama_outputs[0]))
+
+# ----------------------------------------------
+# Output Layer: Aggregating and Validating Results
+# ----------------------------------------------
+# Combine outputs from all stages into a final cohesive response
+final_response = {
+    "text_embeddings": tokenizer_mamba.decode(mamba_outputs[0]),
+    "visual_features": str(yolo_results),
+    "self_reflection": tokenizer_selfrag.decode(selfrag_outputs[0]),
+    "final_reasoning": tokenizer_meta_llama.decode(meta_llama_outputs[0]),
+}
+
+# Print the final aggregated response
+print("Final THANN Output:")
+for key, value in final_response.items():
+    print(f"{key}: {value}")
