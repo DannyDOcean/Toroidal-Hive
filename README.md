@@ -1,114 +1,118 @@
 Toroidal Hive Artificial Neural Network (THANN)
+Overview
+The Toroidal Hive Artificial Neural Network (THANN) is an innovative AI architecture combining advanced multimodal data processing, self-regulation, and ethical reasoning. Inspired by the infinite loops of toroidal geometry, THANN is built to adapt, evolve, and align with human values while leveraging distributed computing for scalability and efficiency.
 
-Description
-
-The Toroidal Hive Artificial Neural Network (THANN) revolutionises artificial intelligence by combining self-healing, adaptive design, and ethical considerations into a single framework inspired by the infinite loops of toroidal geometry. Imagine an AI system that not only learns but also evolves—identifying and correcting its own errors without external intervention.
-
-THANN thrives on its interconnected layers, dynamically adjusting its pathways to maintain optimal performance and resilience against faults. Leveraging advanced attention mechanisms and recursive feedback loops, THANN processes vast and complex data landscapes with unmatched precision and fluidity.
-
-More than just intelligent, THANN is ethical by design. It embeds moral reasoning into its core, aligning with human values and ensuring responsible decision-making. Its hive-like structure fosters unparalleled collaboration between nodes, allowing the system to grow stronger as it learns. From optimizing healthcare to navigating complex networks or driving real-world applications, THANN represents a groundbreaking leap into the future of adaptive, ethical AI.
-
-Welcome to the next generation of intelligence—limitless, self-sustaining, and inspired by nature's perfection.
-
-
----
-
-What We’re Trying to Achieve
-
-Our goal is to build THANN as a transformative AI model that pushes the boundaries of current artificial intelligence capabilities. By integrating self-regulation, ethical decision-making, and energy-efficient operations, we aim to create a system that is not only innovative but also sustainable and responsible.
-
-Key Objectives:
-
-Adaptability: Develop a neural network that evolves autonomously, identifying and correcting errors through self-healing mechanisms.
-
-Ethical Intelligence: Embed moral reasoning into the architecture to ensure alignment with human values.
-
-Collaboration: Enable seamless communication between nodes, creating a hive-like system that strengthens as it learns.
-
-Scalability: Design a modular framework that can be adapted to various real-world applications, from healthcare to logistics.
-
-Energy Efficiency: Leverage energy-optimized solutions to reduce the environmental impact of AI operations.
-
-
-
----
+THANN integrates NVIDIA Megatron-LM, a state-of-the-art framework for distributed training of large-scale models, enabling seamless scalability and precision. This system processes diverse inputs such as text, images, and reflective reasoning, creating a cohesive AI model for advanced real-world applications.
 
 Features
+Distributed Training with Megatron-LM:
 
-1. Self-Healing Design:
+Utilises torch.distributed and Megatron Core for scalable and efficient training across multiple GPUs.
+Ensures fault tolerance and dynamic error correction.
+Multimodal Data Processing:
 
-Incorporates dynamic error detection and correction mechanisms.
+Text embeddings powered by Falcon Mamba 7B.
+Visual feature extraction using YOLOv8.
+Reflective reasoning with Self-RAG.
+Ethical decision-making using Meta-Llama.
+Self-Regulation and Adaptation:
 
-Ensures resilience and fault tolerance across all layers.
+Implements recursive feedback loops inspired by toroidal geometry.
+Dynamically adjusts pathways to ensure resilience and optimal performance.
+Energy Efficiency and Ethical AI:
 
+Integrates energy-optimised solutions for eco-friendly operations.
+Embeds moral reasoning for ethical AI decisions.
+Checkpointing and Model Continuity:
 
+Supports saving and loading distributed checkpoints to maintain training state.
+Architecture
+Input Stage:
 
-2. Adaptive Feedback Loops:
+Falcon Mamba 7B processes raw text data into structured embeddings.
+Ensures efficient and scalable text data encoding.
+Hidden Layers:
 
-Utilizes recursive pathways inspired by toroidal geometry.
+YOLOv8 extracts visual features and performs object detection.
+Self-RAG provides self-reflective regulation, enhancing adaptability.
+Output Stage:
 
-Adjusts dynamically to optimize performance in real time.
+Meta-Llama generates context-aware and ethical responses.
+Final aggregation combines text, visual, and reasoning outputs for a cohesive response.
+Distributed Training:
 
+Megatron-LM enables seamless training across GPUs, ensuring scalability for large datasets and models.
+Installation
+Prerequisites
+Hardware:
+NVIDIA GPUs with CUDA support.
+Software:
+Docker for containerisation.
+NVIDIA Megatron-LM.
+Python 3.8 or later.
+Steps
+Clone the repository:
 
+bash
+Copy code
+git clone https://github.com/DannyDOcean/THANN.git
+cd THANN
+Pull the NVIDIA PyTorch container:
 
-3. Ethical Decision-Making:
+bash
+Copy code
+docker run --ipc=host --shm-size=512m --gpus all -it nvcr.io/nvidia/pytorch:24.02-py3
+Install dependencies:
 
-Embeds moral reasoning directly into the network's operations.
+bash
+Copy code
+pip install megatron_core
+pip install tensorstore==0.1.45 zarr
+pip install torch transformers ultralytics datasets
+Usage
+Training
+Run the training script with multiple GPUs:
 
-Aligns outputs with human values to ensure fairness and transparency.
+bash
+Copy code
+NUM_GPUS=2
+torchrun --nproc-per-node $NUM_GPUS thann_train.py
+Inference
+Use the pre-trained model for inference:
 
+bash
+Copy code
+python thann_inference.py
+Checkpoints
+Save and load model checkpoints during training:
 
-
-4. Collaborative Architecture:
-
-Hive-like structure enables nodes to work together seamlessly.
-
-Promotes efficiency and adaptability across distributed systems.
-
-
-
-5. Energy Efficiency:
-
-Implements energy-optimized solutions to reduce computational costs.
-
-Ensures eco-friendly operations while maintaining high performance.
-
-
-
-
-
----
-
+Save:
+python
+Copy code
+save_distributed_checkpoint('./checkpoints', gpt_model)
+Load:
+python
+Copy code
+gpt_model = load_distributed_checkpoint('./checkpoints', gpt_model)
 Applications
+Healthcare:
+Optimize diagnostics and treatment pathways using multimodal data.
+Autonomous Systems:
+Power adaptive robotics and self-driving technologies.
+Network Analysis:
+Enhance efficiency in logistics and telecommunications.
+Sustainability:
+Create intelligent systems for energy management and monitoring.
+Contributing
+We are looking for collaborators passionate about advancing AI. Whether you're experienced in distributed training, ethical AI, or energy efficiency, join us in shaping the future of AI.
 
-THANN is designed to be versatile and impactful across a wide range of fields:
+To contribute:
 
-Healthcare: Optimize patient care by identifying treatment patterns and improving diagnostics.
+Fork the repository.
+Submit a pull request with detailed documentation of changes.
+Acknowledgments
+Special thanks to:
 
-Network Navigation: Enhance complex network analysis for industries like logistics and telecommunications.
-
-Environmental Sustainability: Enable intelligent systems that monitor and optimize energy usage.
-
-Autonomous Systems: Power adaptive robotics and self-driving technologies with resilient AI.
-
-Ethical AI Research: Set a new standard for responsible and transparent artificial intelligence.
-
-
-
----
-
-Vision
-
-We envision THANN as a cornerstone of the next generation of artificial intelligence. By combining innovation with ethical responsibility, we aim to create an AI system that enhances human potential while respecting the world we live in.
-
-Our ultimate goal is to build a team of visionaries—developers, researchers, and thinkers—who are passionate about advancing AI to new heights. Together, we can bring THANN to life and create a sustainable, adaptive, and ethical future for artificial intelligence.
-
-
----
-
-Join the Journey
-
-This is the foundation of something extraordinary. We are looking for collaborators who share our passion for creating a smarter, more ethical AI. Whether you’re experienced in neural networks, ethical AI, energy efficiency, or have a unique perspective to contribute, we welcome you to join our journey.
-
-Together, we can redefine the future of artificial intelligence. Let’s make THANN a reality.
-
+NVIDIA for providing the Megatron-LM framework.
+Hugging Face for hosting pre-trained models.
+Ultralytics for the YOLO series.
