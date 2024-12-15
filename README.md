@@ -1,118 +1,122 @@
-Toroidal Hive Artificial Neural Network (THANN)
 Overview
-The Toroidal Hive Artificial Neural Network (THANN) is an innovative AI architecture combining advanced multimodal data processing, self-regulation, and ethical reasoning. Inspired by the infinite loops of toroidal geometry, THANN is built to adapt, evolve, and align with human values while leveraging distributed computing for scalability and efficiency.
 
-THANN integrates NVIDIA Megatron-LM, a state-of-the-art framework for distributed training of large-scale models, enabling seamless scalability and precision. This system processes diverse inputs such as text, images, and reflective reasoning, creating a cohesive AI model for advanced real-world applications.
+The Toroidal Hive Artificial Neural Network (THANN) is an innovative AI framework designed to integrate cutting-edge quantum-inspired models with robust neural architectures. It leverages models like Quantum Neural Adaptive Learning Systems, YOLOv8 for visual processing, and Meta-Llama for advanced reasoning, combining them into a powerful sequential pipeline. This system is inspired by toroidal geometry, enabling modularity, adaptability, and high computational efficiency.
 
 Features
-Distributed Training with Megatron-LM:
 
-Utilises torch.distributed and Megatron Core for scalable and efficient training across multiple GPUs.
-Ensures fault tolerance and dynamic error correction.
-Multimodal Data Processing:
+1. Quantum Neural Embedding
 
-Text embeddings powered by Falcon Mamba 7B.
-Visual feature extraction using YOLOv8.
-Reflective reasoning with Self-RAG.
-Ethical decision-making using Meta-Llama.
-Self-Regulation and Adaptation:
+Utilizes Quantum Neural Adaptive Learning System for:
 
-Implements recursive feedback loops inspired by toroidal geometry.
-Dynamically adjusts pathways to ensure resilience and optimal performance.
-Energy Efficiency and Ethical AI:
+Advanced text embeddings.
 
-Integrates energy-optimised solutions for eco-friendly operations.
-Embeds moral reasoning for ethical AI decisions.
-Checkpointing and Model Continuity:
+Enhanced representation of complex inputs using quantum principles.
 
-Supports saving and loading distributed checkpoints to maintain training state.
-Architecture
-Input Stage:
+2. Visual Data Processing
 
-Falcon Mamba 7B processes raw text data into structured embeddings.
-Ensures efficient and scalable text data encoding.
-Hidden Layers:
+Employs YOLOv8 for:
 
-YOLOv8 extracts visual features and performs object detection.
-Self-RAG provides self-reflective regulation, enhancing adaptability.
-Output Stage:
+Real-time object detection.
 
-Meta-Llama generates context-aware and ethical responses.
-Final aggregation combines text, visual, and reasoning outputs for a cohesive response.
-Distributed Training:
+Extraction of visual features for multi-modal applications.
 
-Megatron-LM enables seamless training across GPUs, ensuring scalability for large datasets and models.
+3. Reflective Reasoning
+
+Integrates QuantumAI for:
+
+Self-reflection and analysis of complex concepts.
+
+Advanced decision-making powered by quantum-inspired algorithms.
+
+4. Sentient-Like Reasoning
+
+Uses Meta-Llama for:
+
+Ethical and sentient-like reasoning capabilities.
+
+Generating comprehensive responses to high-level queries.
+
+Workflow
+
+The THANN framework follows a sequential pipeline:
+
+Input Embedding: Quantum Neural Adaptive Learning System generates embeddings from textual inputs.
+
+Visual Feature Extraction: YOLOv8 processes images and extracts object-level visual features.
+
+Reflective Reasoning: QuantumAI analyzes and reflects on the data for self-regulated learning.
+
+Final Reasoning: Meta-Llama combines multi-modal insights for comprehensive decision-making.
+
+Output Aggregation: Consolidates results into a unified response.
+
 Installation
+
 Prerequisites
-Hardware:
-NVIDIA GPUs with CUDA support.
-Software:
-Docker for containerisation.
-NVIDIA Megatron-LM.
-Python 3.8 or later.
-Steps
-Clone the repository:
 
-bash
-Copy code
-git clone https://github.com/DannyDOcean/THANN.git
-cd THANN
-Pull the NVIDIA PyTorch container:
+Python 3.8+
 
-bash
-Copy code
-docker run --ipc=host --shm-size=512m --gpus all -it nvcr.io/nvidia/pytorch:24.02-py3
-Install dependencies:
+CUDA-enabled GPU
 
-bash
-Copy code
-pip install megatron_core
-pip install tensorstore==0.1.45 zarr
-pip install torch transformers ultralytics datasets
+Dependencies:
+
+pip install transformers ultralytics safetensors
+
+Setup
+
+Clone the repository and navigate to the directory:
+
+git clone <repository_url>
+cd thann-framework
+
 Usage
-Training
-Run the training script with multiple GPUs:
 
-bash
-Copy code
-NUM_GPUS=2
-torchrun --nproc-per-node $NUM_GPUS thann_train.py
-Inference
-Use the pre-trained model for inference:
+Run the THANN Framework:
 
-bash
-Copy code
-python thann_inference.py
-Checkpoints
-Save and load model checkpoints during training:
+python thann_model.py
 
-Save:
-python
-Copy code
-save_distributed_checkpoint('./checkpoints', gpt_model)
-Load:
-python
-Copy code
-gpt_model = load_distributed_checkpoint('./checkpoints', gpt_model)
-Applications
-Healthcare:
-Optimize diagnostics and treatment pathways using multimodal data.
-Autonomous Systems:
-Power adaptive robotics and self-driving technologies.
-Network Analysis:
-Enhance efficiency in logistics and telecommunications.
-Sustainability:
-Create intelligent systems for energy management and monitoring.
+Example Input:
+
+Text Input: "Explain the principles of quantum entanglement."
+
+Image Input: Provide a URL to an image for object detection.
+
+Example Output:
+
+Text Embeddings: "Quantum entanglement is..."
+
+Visual Features: "[Object detected: car, probability: 0.98]"
+
+Final Reasoning: "The ethical implications of quantum AI include..."
+
+File Structure
+
+├── thann_model.py      # Main script for running the framework
+├── README.md           # Documentation
+├── requirements.txt    # Dependencies
+
 Contributing
-We are looking for collaborators passionate about advancing AI. Whether you're experienced in distributed training, ethical AI, or energy efficiency, join us in shaping the future of AI.
 
-To contribute:
+We welcome contributions to expand THANN’s capabilities! Feel free to:
 
-Fork the repository.
-Submit a pull request with detailed documentation of changes.
+Suggest additional quantum-inspired models.
+
+Improve existing integration and workflows.
+
+Create new use cases for THANN.
+
+License
+
+This project is licensed under the MIT License.
+
 Acknowledgments
-Special thanks to:
 
-NVIDIA for providing the Megatron-LM framework.
-Hugging Face for hosting pre-trained models.
-Ultralytics for the YOLO series.
+Special thanks to the creators of:
+
+Quantum Neural Adaptive Learning System
+
+YOLOv8 by Ultralytics
+
+Meta-Llama
+
+The Hugging Face and PyTorch communities for their invaluable tools.
