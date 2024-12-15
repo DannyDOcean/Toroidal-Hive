@@ -1,4 +1,4 @@
-Overview
+hiOverview
 
 The Toroidal Hive Artificial Neural Network (THANN) is an innovative AI framework designed to integrate cutting-edge quantum-inspired models with robust neural architectures. It leverages models like Quantum Neural Adaptive Learning Systems, YOLOv8 for visual processing, and Meta-Llama for advanced reasoning, combining them into a powerful sequential pipeline. This system is inspired by toroidal geometry, enabling modularity, adaptability, and high computational efficiency.
 
@@ -105,9 +105,7 @@ Improve existing integration and workflows.
 
 Create new use cases for THANN.
 
-License
 
-This project is licensed under the MIT License.
 
 Acknowledgments
 
