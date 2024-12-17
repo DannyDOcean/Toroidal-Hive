@@ -2,4 +2,5 @@ torch
 transformers
 ultralytics
 datasets
-megatron-core
+megatron-core/requirements.txt
+
