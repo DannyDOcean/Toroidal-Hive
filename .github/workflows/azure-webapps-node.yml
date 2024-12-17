@@ -3,13 +3,13 @@ name: Deploy THANN Model to Azure Web App
 on:
   push:
     branches:
-      - "main" # Run workflow when changes are pushed to the main branch
+      - "main"  # Run workflow when changes are pushed to the main branch
   workflow_dispatch: # Allow manual triggering of the workflow
 
 env:
-  AZURE_WEBAPP_NAME: "your-app-name" # Replace with your Azure Web App name
-  AZURE_WEBAPP_PACKAGE_PATH: "."    # Root directory where your model files are
-  PYTHON_VERSION: "3.8"             # Python version used for the app
+  AZURE_WEBAPP_NAME: "your-app-name"  # Replace with your Azure Web App name
+  AZURE_WEBAPP_PACKAGE_PATH: "."      # Root directory where your model files are
+  PYTHON_VERSION: "3.8"               # Python version used for the app
 
 jobs:
   build:
@@ -28,11 +28,11 @@ jobs:
       # Step 3: Install Dependencies
       - name: Install Dependencies
         run: |
+          python -m pip install --upgrade pip
           if [ -f "requirements.txt" ]; then
-            python -m pip install --upgrade pip
             pip install -r requirements.txt
           else
-            echo "No requirements.txt file found in root directory."
+            echo "No requirements.txt file found in the root directory."
             exit 1
           fi
 
@@ -50,10 +50,11 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build # Only run deploy if the build step passes
+    needs: build  # Only run deploy if the build step passes
     environment:
-      name: 'Production'
+      name: "Production"
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
     steps:
       # Step 1: Download Build Artifact
       - name: Download Build Artifact
@@ -70,5 +71,6 @@ jobs:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
 
 
