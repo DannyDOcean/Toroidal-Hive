@@ -1,154 +1,178 @@
-# **Toroidal Hive (THANN) — README**
+# THANN Prototype – README
 
-## **Overview**
-The **Toroidal Hive (THANN)** project aims to develop a highly advanced, self-healing, and adaptive neural network architecture. This system combines cutting-edge features such as:
-- **Quantum Adaptive Learning (QAL)** for quantum-accelerated processing.  
-- **Social Hive Learning (SHL)** for distributed, collaborative intelligence.  
-- **Emotion-Driven Learning (EDL)** for priority adjustment based on simulated emotional cues.  
-- **Toroidal (looped) Architecture** for continuous feedback and fault tolerance.
+## Overview
+This repository contains a conceptual **Toroidal Hive Artificial Neural Network (THANN)** prototype showcasing:
+1. **A simple neural network class** (`ToroidalHiveModel`) that demonstrates a toroidal feedback loop.
+2. **Hugging Face Transformer pipelines** for text and image tasks (text generation, fill-mask, image classification, zero-shot image classification, and text-to-text generation).
+3. **Sentence embeddings** using [Sentence Transformers](https://www.sbert.net/).
+4. **ResNet image classification** (`microsoft/resnet-50`).
+5. **Gradio UI** to easily interact with text generation and image classification features.
 
-This code integrates various libraries—Hugging Face Transformers, vLLM, Nanotron, and Sentence Transformers—to demonstrate how a multimodal and “toroidal” approach might look in practice.
+While the code includes basic components inspired by the THANN concept (like a feedback loop and modular design), it is primarily a **proof of concept** rather than a fully functional, self-healing or quantum-powered system.
 
-## **Key Features**
+---
 
-1. **Multimodal Pipelines**  
-   - Text generation (`text-generation` pipeline).  
-   - Fill-mask predictions (`fill-mask` pipeline).  
-   - Image classification (`image-classification` pipeline).  
-   - Zero-shot image classification (`zero-shot-image-classification` pipeline).  
-   - Text-to-text transformations (e.g., emotion classification).
+## Features
+1. **ToroidalHiveModel**:  
+   - A simple LSTM-based model illustrating how a toroidal feedback loop might be implemented.
+   - Shows how to pass output “feedback” back into an additional transformation layer.
 
-2. **Toroidal Hive Model**  
-   - An example PyTorch module illustrating how outputs can loop back into earlier layers, enabling redundancy and self-correction.
+2. **Multimodal Pipelines**:  
+   - **Text Generation** (DistilGPT2)  
+   - **Fill-Mask** (BERT base)  
+   - **Image Classification** (ViT base)  
+   - **Zero-Shot Image Classification** (CLIP base)  
+   - **Text2Text Generation** (FLAN-T5-Small)  
+   - **ResNet Classification** (microsoft/resnet-50)
 
-3. **Example Quantum and Distributed Extensions**  
-   - Placeholder sections for quantum computing libraries (IBM Qiskit or TensorFlow Quantum) and swarm intelligence techniques (blockchain or distributed ledger support).
+3. **Sentence Embeddings**:  
+   - Uses [Sentence Transformers](https://github.com/UKPLab/sentence-transformers) to compute embeddings and produce a dot-product similarity matrix.
 
-4. **Nanotron Training**  
-   - Demonstrates advanced distributed training through the Nanotron library, which enables scaling across multiple GPUs or nodes.
+4. **Gradio UI**:  
+   - User-friendly interface that allows you to:
+     - Enter custom text and get auto-generated responses.
+     - Upload images for classification using ResNet-50.
 
-## **Repository Structure**
+---
 
+## Installation
+
+1. **Clone This Repository**
+
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/THANN.git
+   cd THANN
+   ```
+
+2. **Install Dependencies**
+
+   ```bash
+   pip install torch transformers sentence-transformers gradio
+   ```
+
+   - **PyTorch**: Deep learning library  
+   - **Transformers**: Hugging Face library for state-of-the-art NLP models  
+   - **Sentence Transformers**: Easy computation of sentence and text embeddings  
+   - **Gradio**: Quick creation of easy-to-use web interfaces
+
+---
+
+## Usage
+
+### 1. Demo Mode
+**Runs pipeline demonstrations** (text generation, fill-mask, image classification, etc.) and the sentence embedding example.
+
+```bash
+python thann.py --demo
 ```
-toroidal_hive/
-├─ README.md (This File)
-├─ toroidal_hive.py
-├─ examples/
-│  └─ config_tiny_llama.yaml  (Sample Nanotron config)
-├─ requirements.txt           (Suggested Python dependencies)
-└─ LICENSE (Your chosen license)
+
+- Prints out:
+  - Loaded pipeline names  
+  - Sentence similarity matrix  
+  - Example text generation from DistilGPT2 (if loaded)
+
+### 2. Gradio UI
+**Launches the Gradio web interface** to:
+- Type in a prompt for text generation using DistilGPT2  
+- Upload an image for classification using ResNet-50
+
+```bash
+python thann.py --ui
 ```
 
-### **Key Files**
-- **`toroidal_hive.py`**: Main Python script combining the different Hugging Face pipelines, a conceptual Toroidal Hive model, and optional Nanotron training logic.  
-- **`config_tiny_llama.yaml`**: Example Nanotron configuration file for large-scale distributed training.  
-- **`requirements.txt`**: Recommended dependencies (PyTorch, Hugging Face Transformers, Sentence Transformers, Nanotron, vLLM, etc.).
+- This opens a local Gradio interface in your browser (usually at `http://127.0.0.1:7860`).
+- In the “Text Generation” tab, enter your prompt to get a generated response.  
+- In the “ResNet Image Classification” tab, upload an image to see classification labels.
 
-## **Installation Instructions**
-
-1. **Clone the Repository**  
-   ```bash
-   git clone https://github.com/your-username/toroidal_hive.git
-   cd toroidal_hive
-   ```
-
-2. **Create a Virtual Environment** (Optional but recommended)  
-   ```bash
-   python -m venv venv
-   source venv/bin/activate    # Linux/Mac
-   # or
-   venv\Scripts\activate       # Windows
-   ```
-
-3. **Install Dependencies**  
-   ```bash
-   pip install -r requirements.txt
-   ```
-   *If you see any missing dependencies, install them via pip or conda.*
-
-4. **(Optional) Install Additional Libraries**  
-   - **vLLM**: `pip install vllm`  
-   - **Quantum Libraries** (if using QAL aspects): `pip install qiskit` or `pip install tensorflow-quantum`  
-   - **Nanotron** (for distributed training): `pip install nanotron`
-
-## **Usage**
-
-1. **Basic Demo**  
-   Run the main script to load the pipelines, generate sentence embeddings, and (optionally) train the Toroidal Hive model:
-   ```bash
-   python toroidal_hive.py
-   ```
-   This will:
-   - Try to load each pipeline (skipping those with missing dependencies).  
-   - Print similarity matrices for sample sentences.  
-   - Print simple demonstration outputs (e.g., text generation, fill-mask predictions).
-
-2. **Run Training with Nanotron**  
-   ```bash
-   python toroidal_hive.py --train --config-file examples/config_tiny_llama.yaml
-   ```
-   - `--train`: Activates the training loop.  
-   - `--config-file`: Points to your Nanotron configuration file for advanced distributed training.
-
-3. **Serving a Large Language Model with vLLM** (Optional)  
-   - Start the server:
-     ```bash
-     vllm serve "bartowski/Buzz-8b-Large-v0.5-GGUF"
-     ```
-   - Query the model via HTTP `POST`:
-     ```bash
-     curl -X POST "http://localhost:8000/v1/completions" \
-          -H "Content-Type: application/json" \
-          --data '{
-              "model": "bartowski/Buzz-8b-Large-v0.5-GGUF",
-              "prompt": "Once upon a time,",
-              "max_tokens": 512,
-              "temperature": 0.5
-          }'
-     ```
-
-## **Customisation**
-1. **Model Names**  
-   - Replace placeholders like `"meta-llama/Llama-3.3-70B-Instruct"` or `"bartowski/Buzz-8b-Large-v0.5-GGUF"` with actual model names accessible to your environment.
-
-2. **ToroidalHiveModel**  
-   - Extend or modify the `ToroidalHiveModel` class in `toroidal_hive.py` to include:  
-     - **Quantum layers** if using quantum computing libraries.  
-     - **Emotion-driven modules** that adjust learning rates or behaviour.  
-     - **Self-healing logic** that monitors layer outputs for anomalies.
-
-3. **Data Pipeline**  
-   - Adapt the script to handle your specific multimodal datasets (images, text, etc.).  
-   - Update the Nanotron config to reflect your dataset paths, preprocessing scripts, and training parameters.
-
-4. **Social Hive Learning**  
-   - For decentralised or swarm intelligence, investigate strategies such as:  
-     - **Blockchain** for synchronising agent states.  
-     - **Peer-to-peer** networks for sharing learned parameters among different nodes.
-
-## **Troubleshooting**
-- **Missing Dependencies**: Check the `requirements.txt` or manually install the required libraries.  
-- **Model Loading Errors**: Ensure the model references are valid on Hugging Face Hub or locally available.  
-- **GPU/TPU Resources**: Large models may require extensive GPU/TPU memory. Ensure you have the right hardware or use smaller models for development.  
-- **Nanotron Timeouts**: Adjust your parallel context or caching strategy if you encounter timeouts on multi-GPU setups.
-
-## **Contributing**
-1. **Fork the Repository** and create a new feature branch.  
-2. **Make Your Changes**: Add your modifications to the `ToroidalHiveModel` or the training pipelines.  
-3. **Test** thoroughly, ensuring backward compatibility.  
-4. **Create a Pull Request**: Provide a clear summary of your changes, motivations, and test results.  
-
-## **License**
-Include the license under which your project is distributed (MIT, Apache 2.0, etc.). For example:
-
-```
-MIT License
-
-Copyright (c) 2025 [Your Name]
-
-Permission is hereby granted...
+### 3. Additional Arguments
+To see all available command-line arguments:
+```bash
+python thann.py --help
 ```
 
 ---
 
-**Enjoy exploring the Toroidal Hive (THANN) architecture!** If you have questions or suggestions, feel free to open an issue or reach out to the community. Working together, we can build a more adaptive, collaborative, and resilient AI future.
+## File Structure
+
+```plaintext
+.
+├── thann.py           # Main script containing the THANN prototype & pipelines
+├── requirements.txt   # (optional) Dependencies if you want a pinned environment
+├── README.md          # Project documentation (this file)
+└── ...                # Any additional files or directories
+```
+
+- **`thann.py`** includes:
+  - `ToroidalHiveModel`: Illustrates the concept of a toroidal feedback loop.
+  - `create_multimodal_pipelines()`: Loads all Hugging Face pipelines.
+  - `example_sentence_embeddings()`: Demonstrates sentence embeddings.
+  - `run_gradio_ui()`: Launches the Gradio interface.
+
+---
+
+## Technical Details
+
+1. **ToroidalHiveModel (Conceptual)**  
+   - Uses a simple LSTM to process tokenised input.  
+   - After classification, the output logits are passed through a softmax and then averaged to create a feedback signal.  
+   - Demonstrates how feedback could be reinjected into the network for error correction or further processing.
+
+2. **Multimodal Pipelines**  
+   - Each pipeline uses a different Hugging Face model.  
+   - The script attempts to load them in sequence; if any model fails to load, it displays a warning.
+
+3. **Sentence Embeddings**  
+   - Uses the [all-MiniLM-L6-v2](https://www.sbert.net/docs/pretrained_models.html) model from Sentence Transformers.  
+   - Shows how to compute embeddings and a similarity matrix for a list of example sentences.
+
+4. **Gradio UI**  
+   - Built with `gradio.Blocks()` to create two separate tabs:
+     - **Text Generation**: DistilGPT2  
+     - **Image Classification**: ResNet-50  
+   - Easily extendable to include other pipelines (e.g., fill-mask, zero-shot classification) with minimal code changes.
+
+---
+
+## Future Improvements
+
+- **Self-Healing Mechanisms**: Implement layers that detect and correct errors during runtime.
+- **Adaptive Learning Rates/Emotional Inputs**: Adjust learning parameters based on “emotional signals” or reinforcement cues.
+- **Quantum Modules**: Integrate quantum computing libraries (e.g., Qiskit) for advanced features like quantum-enhanced search.
+- **Swarm-Based Logic**: Expand the single `ToroidalHiveModel` into multiple agents exchanging parameters or experiences.
+
+---
+
+## Contributing
+
+1. **Fork the Repository**  
+   - Make a personal copy to experiment and add features.
+
+2. **Create a Feature Branch**  
+   ```bash
+   git checkout -b feature-new-idea
+   ```
+
+3. **Commit Your Changes**  
+   ```bash
+   git commit -m "Add new feature"
+   ```
+
+4. **Push and Submit a Pull Request**  
+   ```bash
+   git push origin feature-new-idea
+   ```
+   - Open a Pull Request in GitHub, describing your changes.
+
+---
+
+## License
+
+This project is provided “as is” for educational and illustrative purposes. Please consult the repository’s [LICENSE](LICENSE) file (if available) or consider adding your preferred license (e.g., MIT, Apache-2.0) to clarify usage rights and limitations.
+
+---
+
+## Contact
+
+For questions or suggestions, open an [issue](../../issues) in this repository or reach out via your preferred method (e.g., LinkedIn, Twitter, or email if provided).
+
+Enjoy experimenting with the **THANN Prototype** and exploring cutting-edge ideas in neural network design!
