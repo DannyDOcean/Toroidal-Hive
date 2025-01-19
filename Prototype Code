@@ -2,24 +2,20 @@
 # -*- coding: utf-8 -*-
 
 """
-THANN without Nanotron
-----------------------
-This script demonstrates a simplified 'Toroidal Hive' AI prototype
-*without* the Nanotron library. It includes:
+thann.py
+--------
+A production-ready example of a Toroidal Hive (THANN) prototype using
+smaller, reliable Hugging Face models for text, fill-mask, and image tasks.
 
-1. A ToroidalHiveModel class (PyTorch) illustrating a conceptual
-   feedback loop for self-healing or other advanced logic.
-2. Multiple Hugging Face pipelines for text, fill-mask, and images.
-3. A SentenceTransformer example for embeddings and similarity.
+Requirements:
+  pip install torch transformers sentence-transformers
 """
 
 import argparse
-import logging
-import os
-
 import torch
 import numpy as np
 
+# Hugging Face Transformers
 from transformers import (
     pipeline,
     AutoTokenizer,
@@ -31,21 +27,25 @@ from transformers import (
     AutoModelForZeroShotImageClassification,
     AutoModelForSeq2SeqLM
 )
+
+# Sentence Transformers (for embeddings/similarity)
 from sentence_transformers import SentenceTransformer
 
+
 ##############################################################################
-# 1. Toroidal Hive Model (Conceptual)
+# 1. Toroidal Hive Model (Conceptual Example)
 ##############################################################################
 
 class ToroidalHiveModel(torch.nn.Module):
     """
-    A conceptual neural network class representing a toroidal
-    (looped) architecture. In a real system, you might implement:
-      - Self-healing logic
-      - Emotion-driven weight adjustments
-      - Quantum-enabled layers
-      - Social Hive Learning (distributed)
-    Here, it’s just a simple LSTM with a feedback mechanism.
+    A conceptual neural network illustrating a 'toroidal' feedback loop.
+    In a real THANN system, you'd add:
+      - Self-healing or error correction layers
+      - Emotional weighting or adaptive learning rates
+      - Possibly quantum modules (if using Qiskit, etc.)
+      - Swarm-based multi-agent logic
+
+    Here, it's an LSTM with a simple feedback transform for demonstration.
     """
     def __init__(self, hidden_size=256, vocab_size=30522):
         super(ToroidalHiveModel, self).__init__()
@@ -53,117 +53,121 @@ class ToroidalHiveModel(torch.nn.Module):
         self.lstm = torch.nn.LSTM(hidden_size, hidden_size, batch_first=True)
         self.classifier = torch.nn.Linear(hidden_size, vocab_size)
 
-        # Example feedback transformation
+        # Example of a feedback transformation for post-processing logits
         self.feedback_transform = torch.nn.Linear(vocab_size, hidden_size)
 
     def forward(self, input_ids, hidden=None):
         """
-        Forward pass with a conceptual feedback loop:
-          1. Embedding
-          2. LSTM (or other module)
-          3. Classifier
-          4. (Optional) feedback re-injection
+        Forward pass with a basic feedback loop:
+        1) Input embeddings
+        2) LSTM
+        3) Classifier -> vocab logits
+        4) Convert the average softmax logits back to hidden space
         """
-
         # 1. Embedding
         emb = self.embedding(input_ids)
 
         # 2. LSTM
         output, (h_n, c_n) = self.lstm(emb, hidden)
 
-        # 3. Classifier (logits over vocabulary)
+        # 3. Classifier
         logits = self.classifier(output)
 
-        # 4. Simple feedback demonstration:
-        #    We average logits along the time dimension and transform back
-        feedback = torch.softmax(logits, dim=-1).mean(dim=1)
+        # 4. Simple feedback
+        feedback = torch.softmax(logits, dim=-1).mean(dim=1)  # average over time dimension
         feedback_hidden = self.feedback_transform(feedback)
-        # You could do something more sophisticated with feedback_hidden...
+        # You could feed 'feedback_hidden' back into the LSTM or a specialized module.
 
         return logits, (h_n, c_n)
 
+
 ##############################################################################
-# 2. Multimodal Pipelines (Hugging Face)
+# 2. Multimodal Pipelines Using Smaller, Real Models
 ##############################################################################
 
 def create_multimodal_pipelines():
     """
-    Returns a dictionary of pipeline objects for text generation,
-    fill-mask, image classification, zero-shot image classification,
-    and text2text generation.
+    Returns a dictionary of Hugging Face pipeline objects for:
+      - Text Generation (DistilGPT2)
+      - Fill-Mask (BERT base)
+      - Image Classification (ViT base)
+      - Zero-Shot Image Classification (CLIP base)
+      - Text2Text Generation (FLAN-T5-Small)
+    Each is relatively small, so you avoid long downloads or timeouts.
     """
     pipelines_dict = {}
 
-    # Text Generation (example: meta-llama/Llama-3.3-70B-Instruct)
+    # TEXT GENERATION: DistilGPT2 (~500 MB)
     try:
-        text_gen_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.3-70B-Instruct")
-        text_gen_model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.3-70B-Instruct")
+        text_gen_tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
+        text_gen_model = AutoModelForCausalLM.from_pretrained("distilgpt2")
         pipelines_dict["text_generation"] = pipeline(
             "text-generation",
             model=text_gen_model,
             tokenizer=text_gen_tokenizer
         )
     except Exception as e:
-        print(f"[Warning] Failed to load text-generation pipeline: {e}")
+        print(f"[Warning] Failed to load text-generation (distilgpt2): {e}")
 
-    # Fill-Mask (example: google-bert/bert-base-uncased)
+    # FILL-MASK: BERT base (~420 MB)
     try:
-        fill_mask_tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
-        fill_mask_model = AutoModelForMaskedLM.from_pretrained("google-bert/bert-base-uncased")
+        fill_mask_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+        fill_mask_model = AutoModelForMaskedLM.from_pretrained("bert-base-uncased")
         pipelines_dict["fill_mask"] = pipeline(
             "fill-mask",
             model=fill_mask_model,
             tokenizer=fill_mask_tokenizer
         )
     except Exception as e:
-        print(f"[Warning] Failed to load fill-mask pipeline: {e}")
+        print(f"[Warning] Failed to load fill-mask (bert-base-uncased): {e}")
 
-    # Image Classification (example: microsoft/resnet-50)
+    # IMAGE CLASSIFICATION: ViT base (~330 MB)
     try:
-        image_processor = AutoImageProcessor.from_pretrained("microsoft/resnet-50")
-        image_model = AutoModelForImageClassification.from_pretrained("microsoft/resnet-50")
+        image_processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
+        image_model = AutoModelForImageClassification.from_pretrained("google/vit-base-patch16-224")
         pipelines_dict["image_classification"] = pipeline(
             "image-classification",
             model=image_model,
             feature_extractor=image_processor
         )
     except Exception as e:
-        print(f"[Warning] Failed to load image-classification pipeline: {e}")
+        print(f"[Warning] Failed to load image-classification (vit-base): {e}")
 
-    # Zero-Shot Image Classification (example: openai/clip-vit-large-patch14)
+    # ZERO-SHOT IMAGE CLASSIFICATION: CLIP base (~500 MB)
     try:
-        zero_shot_processor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
-        zero_shot_model = AutoModelForZeroShotImageClassification.from_pretrained("openai/clip-vit-large-patch14")
+        zero_shot_processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
+        zero_shot_model = AutoModelForZeroShotImageClassification.from_pretrained("openai/clip-vit-base-patch32")
         pipelines_dict["zero_shot_image"] = pipeline(
             "zero-shot-image-classification",
             model=zero_shot_model,
             feature_extractor=zero_shot_processor
         )
     except Exception as e:
-        print(f"[Warning] Failed to load zero-shot-image-classification pipeline: {e}")
+        print(f"[Warning] Failed to load zero-shot-image (clip-vit-base-patch32): {e}")
 
-    # Text2Text Generation (example: mrm8488/t5-base-finetuned-emotion)
+    # TEXT2TEXT GENERATION: FLAN-T5-Small (~300 MB)
     try:
-        text2text_tokenizer = AutoTokenizer.from_pretrained("mrm8488/t5-base-finetuned-emotion")
-        text2text_model = AutoModelForSeq2SeqLM.from_pretrained("mrm8488/t5-base-finetuned-emotion")
+        text2text_tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
+        text2text_model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
         pipelines_dict["text2text_generation"] = pipeline(
             "text2text-generation",
             model=text2text_model,
             tokenizer=text2text_tokenizer
         )
     except Exception as e:
-        print(f"[Warning] Failed to load text2text-generation pipeline: {e}")
+        print(f"[Warning] Failed to load text2text-generation (flan-t5-small): {e}")
 
     return pipelines_dict
 
+
 ##############################################################################
-# 3. Example Sentence Embeddings
+# 3. Sentence Embeddings Example
 ##############################################################################
 
 def example_sentence_embeddings():
     """
-    Demonstrates how to compute embeddings using
-    SentenceTransformer and measure similarity.
+    Demonstrates how to compute embeddings with SentenceTransformer
+    (all-MiniLM-L6-v2) and produce a simple dot-product similarity matrix.
     """
     model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
     sentences = [
@@ -173,42 +177,45 @@ def example_sentence_embeddings():
         "Today is a sunny day"
     ]
     embeddings = model.encode(sentences)
-
-    # Create a simple similarity matrix via dot product
+    # Dot product similarity matrix
     sim_matrix = np.inner(embeddings, embeddings)
     return sentences, sim_matrix
 
+
 ##############################################################################
-# 4. Main Driver
+# 4. Main Script
 ##############################################################################
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--demo", action="store_true", help="Run a quick demonstration of pipelines and embeddings.")
+    parser.add_argument("--demo", action="store_true", help="Run demonstration: pipelines + embeddings.")
     args = parser.parse_args()
 
     if args.demo:
-        # 1) Create all the pipelines
+        # 1) Create pipelines
         pipelines_dict = create_multimodal_pipelines()
-        print(f"Loaded pipelines: {list(pipelines_dict.keys())}")
+        print(f"\nLoaded pipelines: {list(pipelines_dict.keys())}")
 
-        # 2) Demo sentence embeddings
+        # 2) Sentence embeddings example
         sentences, sim_matrix = example_sentence_embeddings()
         print("\n=== Sentence Embeddings Demo ===")
         print("Sentences:", sentences)
         print("Similarity Matrix:\n", sim_matrix)
 
-        # 3) Optional quick text generation test
+        # 3) Quick text generation test (if pipeline loaded)
         if "text_generation" in pipelines_dict:
-            print("\n=== Text Generation Demo ===")
+            print("\n=== DistilGPT2 Text Generation Demo ===")
             prompt = "Once upon a time, in a land far away,"
-            output = pipelines_dict["text_generation"](prompt, max_length=40, do_sample=True)
+            output = pipelines_dict["text_generation"](
+                prompt,
+                max_length=40,
+                do_sample=True
+            )
             print("Generated text:", output[0]["generated_text"])
         else:
-            print("\n[text_generation] pipeline not loaded.")
-
+            print("[text_generation] pipeline not loaded.")
     else:
-        print("Run with '--demo' to see pipeline demonstrations.")
+        print("Run: python thann.py --demo  to see the demo pipeline usage.")
 
 if __name__ == "__main__":
     main()
