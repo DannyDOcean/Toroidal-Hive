@@ -4,292 +4,305 @@
 """
 thann.py
 --------
-A production-ready example of a Toroidal Hive (THANN) prototype using
-smaller, reliable Hugging Face models for text, fill-mask, and image tasks.
-
-New Features:
-  1. ResNet (microsoft/resnet-50) pipeline for image classification.
-  2. Gradio UI to demo text generation and ResNet-based image classification.
+An advanced example of a Toroidal Hive (THANN) prototype with integrated dataset loading.
+This version includes built-in support for selecting a dataset:
+    - 'custom': Provide one or more image paths via command-line.
+    - 'coco': Load images from a COCO sample folder.
+    - 'shapenet': (Placeholder) For integrating 3D object datasets.
+Additional processing (background removal, rendering, mesh extraction, texture baking)
+remains unchanged.
 
 Requirements:
-  pip install torch transformers sentence-transformers gradio
+    pip install torch transformers sentence-transformers rembg xatlas pillow numpy
 """
 
 import argparse
-import torch
+import logging
+import os
+import time
+import glob
 import numpy as np
+import rembg
+import torch
+import xatlas
+from PIL import Image
 
-# Hugging Face Transformers
-from transformers import (
-    pipeline,
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    AutoModelForMaskedLM,
-    AutoImageProcessor,
-    AutoModelForImageClassification,
-    AutoProcessor,
-    AutoModelForZeroShotImageClassification,
-    AutoModelForSeq2SeqLM
+from tsr.system import TSR
+from tsr.utils import remove_background, resize_foreground, save_video
+from tsr.bake_texture import bake_texture
+
+##############################################################################
+# Timer Utility
+##############################################################################
+
+class Timer:
+    def __init__(self):
+        self.items = {}
+        self.time_scale = 1000.0  # ms
+        self.time_unit = "ms"
+
+    def start(self, name: str) -> None:
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        self.items[name] = time.time()
+        logging.info(f"{name} ...")
+
+    def end(self, name: str) -> float:
+        if name not in self.items:
+            return
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        start_time = self.items.pop(name)
+        delta = time.time() - start_time
+        t = delta * self.time_scale
+        logging.info(f"{name} finished in {t:.2f}{self.time_unit}.")
+        return t
+
+timer = Timer()
+
+##############################################################################
+# Logging Configuration
+##############################################################################
+
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-# Sentence Transformers (for embeddings/similarity)
-from sentence_transformers import SentenceTransformer
-
 ##############################################################################
-# 1. Toroidal Hive Model (Conceptual Example)
+# Dataset Loader Functions
 ##############################################################################
 
-class ToroidalHiveModel(torch.nn.Module):
+def load_custom_images(image_paths):
+    """Load images from a list of provided file paths."""
+    images = []
+    for image_path in image_paths:
+        image = np.array(Image.open(image_path).convert("RGB"))
+        images.append(image)
+    return images
+
+def load_coco_dataset(dataset_dir):
     """
-    A conceptual neural network illustrating a 'toroidal' feedback loop.
-    In a real THANN system, you'd add:
-      - Self-healing or error correction layers
-      - Emotional weighting or adaptive learning rates
-      - Possibly quantum modules (if using Qiskit, etc.)
-      - Swarm-based multi-agent logic
-
-    Here, it's an LSTM with a simple feedback transform for demonstration.
+    Load images from a sample COCO dataset directory.
+    This function assumes that dataset_dir contains JPEG/PNG images.
     """
-    def __init__(self, hidden_size=256, vocab_size=30522):
-        super(ToroidalHiveModel, self).__init__()
-        self.embedding = torch.nn.Embedding(num_embeddings=vocab_size, embedding_dim=hidden_size)
-        self.lstm = torch.nn.LSTM(hidden_size, hidden_size, batch_first=True)
-        self.classifier = torch.nn.Linear(hidden_size, vocab_size)
+    image_files = glob.glob(os.path.join(dataset_dir, "*.jpg")) + glob.glob(os.path.join(dataset_dir, "*.png"))
+    if len(image_files) == 0:
+        logging.error(f"No images found in {dataset_dir}")
+    images = []
+    for file in image_files:
+        image = np.array(Image.open(file).convert("RGB"))
+        images.append(image)
+    logging.info(f"Loaded {len(images)} images from COCO dataset at {dataset_dir}.")
+    return images
 
-        # Example of a feedback transformation for post-processing logits
-        self.feedback_transform = torch.nn.Linear(vocab_size, hidden_size)
-
-    def forward(self, input_ids, hidden=None):
-        """
-        Forward pass with a basic feedback loop:
-        1) Input embeddings
-        2) LSTM
-        3) Classifier -> vocab logits
-        4) Convert the average softmax logits back to hidden space
-        """
-        # 1. Embedding
-        emb = self.embedding(input_ids)
-
-        # 2. LSTM
-        output, (h_n, c_n) = self.lstm(emb, hidden)
-
-        # 3. Classifier
-        logits = self.classifier(output)
-
-        # 4. Simple feedback
-        feedback = torch.softmax(logits, dim=-1).mean(dim=1)  # average over time dimension
-        feedback_hidden = self.feedback_transform(feedback)
-        # You could feed 'feedback_hidden' back into the LSTM or a specialized module.
-
-        return logits, (h_n, c_n)
-
-
-##############################################################################
-# 2. Multimodal Pipelines Using Smaller, Real Models (with ResNet added)
-##############################################################################
-
-def create_multimodal_pipelines():
+def load_shapenet_dataset(dataset_dir):
     """
-    Returns a dictionary of Hugging Face pipeline objects for:
-      - Text Generation (DistilGPT2)
-      - Fill-Mask (BERT base)
-      - Image Classification (ViT base)
-      - Zero-Shot Image Classification (CLIP base)
-      - Text2Text Generation (FLAN-T5-Small)
-      - ResNet Image Classification (microsoft/resnet-50)
-    Each is relatively small, so you avoid long downloads or timeouts.
+    (Placeholder) Load images or 3D models from a ShapeNet dataset directory.
+    In a full implementation, you would parse ShapeNet 3D models and/or their rendered views.
+    Here, we load sample rendered images for demonstration.
     """
-    pipelines_dict = {}
-
-    # TEXT GENERATION: DistilGPT2 (~500 MB)
-    try:
-        text_gen_tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
-        text_gen_model = AutoModelForCausalLM.from_pretrained("distilgpt2")
-        pipelines_dict["text_generation"] = pipeline(
-            "text-generation",
-            model=text_gen_model,
-            tokenizer=text_gen_tokenizer
-        )
-    except Exception as e:
-        print(f"[Warning] Failed to load text-generation (distilgpt2): {e}")
-
-    # FILL-MASK: BERT base (~420 MB)
-    try:
-        fill_mask_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-        fill_mask_model = AutoModelForMaskedLM.from_pretrained("bert-base-uncased")
-        pipelines_dict["fill_mask"] = pipeline(
-            "fill-mask",
-            model=fill_mask_model,
-            tokenizer=fill_mask_tokenizer
-        )
-    except Exception as e:
-        print(f"[Warning] Failed to load fill-mask (bert-base-uncased): {e}")
-
-    # IMAGE CLASSIFICATION: ViT base (~330 MB)
-    try:
-        image_processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
-        image_model = AutoModelForImageClassification.from_pretrained("google/vit-base-patch16-224")
-        pipelines_dict["image_classification"] = pipeline(
-            "image-classification",
-            model=image_model,
-            feature_extractor=image_processor
-        )
-    except Exception as e:
-        print(f"[Warning] Failed to load image-classification (vit-base): {e}")
-
-    # ZERO-SHOT IMAGE CLASSIFICATION: CLIP base (~500 MB)
-    try:
-        zero_shot_processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
-        zero_shot_model = AutoModelForZeroShotImageClassification.from_pretrained("openai/clip-vit-base-patch32")
-        pipelines_dict["zero_shot_image"] = pipeline(
-            "zero-shot-image-classification",
-            model=zero_shot_model,
-            feature_extractor=zero_shot_processor
-        )
-    except Exception as e:
-        print(f"[Warning] Failed to load zero-shot-image (clip-vit-base-patch32): {e}")
-
-    # TEXT2TEXT GENERATION: FLAN-T5-Small (~300 MB)
-    try:
-        text2text_tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
-        text2text_model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
-        pipelines_dict["text2text_generation"] = pipeline(
-            "text2text-generation",
-            model=text2text_model,
-            tokenizer=text2text_tokenizer
-        )
-    except Exception as e:
-        print(f"[Warning] Failed to load text2text-generation (flan-t5-small): {e}")
-
-    # RESNET IMAGE CLASSIFICATION: microsoft/resnet-50
-    try:
-        resnet_processor = AutoImageProcessor.from_pretrained("microsoft/resnet-50")
-        resnet_model = AutoModelForImageClassification.from_pretrained("microsoft/resnet-50")
-        pipelines_dict["resnet_classification"] = pipeline(
-            "image-classification",
-            model=resnet_model,
-            feature_extractor=resnet_processor
-        )
-    except Exception as e:
-        print(f"[Warning] Failed to load resnet classification (microsoft/resnet-50): {e}")
-
-    return pipelines_dict
-
+    image_files = glob.glob(os.path.join(dataset_dir, "*.jpg")) + glob.glob(os.path.join(dataset_dir, "*.png"))
+    if len(image_files) == 0:
+        logging.error(f"No images found in {dataset_dir}")
+    images = []
+    for file in image_files:
+        image = np.array(Image.open(file).convert("RGB"))
+        images.append(image)
+    logging.info(f"Loaded {len(images)} sample rendered images from ShapeNet dataset at {dataset_dir}.")
+    return images
 
 ##############################################################################
-# 3. Sentence Embeddings Example
+# Argument Parsing
 ##############################################################################
 
-def example_sentence_embeddings():
-    """
-    Demonstrates how to compute embeddings with SentenceTransformer
-    (all-MiniLM-L6-v2) and produce a simple dot-product similarity matrix.
-    """
-    model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    sentences = [
-        "That is a happy person",
-        "That is a happy dog",
-        "That is a very happy person",
-        "Today is a sunny day"
-    ]
-    embeddings = model.encode(sentences)
-    # Dot product similarity matrix
-    sim_matrix = np.inner(embeddings, embeddings)
-    return sentences, sim_matrix
+parser = argparse.ArgumentParser()
+parser.add_argument("image", type=str, nargs="*", help="Path to input image(s). Ignored if --dataset is specified.")
+parser.add_argument(
+    "--dataset",
+    type=str,
+    default="custom",
+    choices=["custom", "coco", "shapenet"],
+    help="Choose dataset mode: 'custom' for manual image paths; 'coco' or 'shapenet' for built-in dataset loading. Default: custom",
+)
+parser.add_argument(
+    "--dataset-dir",
+    type=str,
+    default="",
+    help="Directory of the dataset to load if --dataset is not 'custom'.",
+)
+parser.add_argument(
+    "--device",
+    default="cuda:0",
+    type=str,
+    help="Device to use. If no CUDA-compatible device is found, will fallback to 'cpu'. Default: 'cuda:0'",
+)
+parser.add_argument(
+    "--pretrained-model-name-or-path",
+    default="stabilityai/TripoSR",
+    type=str,
+    help="Path to the pretrained model. Could be a Hugging Face model id or a local path. Default: 'stabilityai/TripoSR'",
+)
+parser.add_argument(
+    "--chunk-size",
+    default=8192,
+    type=int,
+    help="Evaluation chunk size for surface extraction and rendering. Smaller chunk size reduces VRAM usage but increases computation time. Default: 8192",
+)
+parser.add_argument(
+    "--mc-resolution",
+    default=256,
+    type=int,
+    help="Marching cubes grid resolution. Default: 256"
+)
+parser.add_argument(
+    "--no-remove-bg",
+    action="store_true",
+    help="If specified, the background will NOT be automatically removed from the input image, and the input image should be an RGB image with grey background and properly-sized foreground. Default: false",
+)
+parser.add_argument(
+    "--foreground-ratio",
+    default=0.85,
+    type=float,
+    help="Ratio of the foreground size to the image size. Only used when --no-remove-bg is not specified. Default: 0.85",
+)
+parser.add_argument(
+    "--output-dir",
+    default="output/",
+    type=str,
+    help="Output directory to save the results. Default: 'output/'",
+)
+parser.add_argument(
+    "--model-save-format",
+    default="obj",
+    type=str,
+    choices=["obj", "glb"],
+    help="Format to save the extracted mesh. Default: 'obj'",
+)
+parser.add_argument(
+    "--bake-texture",
+    action="store_true",
+    help="Bake a texture atlas for the extracted mesh, instead of vertex colors",
+)
+parser.add_argument(
+    "--texture-resolution",
+    default=2048,
+    type=int,
+    help="Texture atlas resolution, only useful with --bake-texture. Default: 2048"
+)
+parser.add_argument(
+    "--render",
+    action="store_true",
+    help="If specified, save a NeRF-rendered video. Default: false",
+)
+args = parser.parse_args()
 
+output_dir = args.output_dir
+os.makedirs(output_dir, exist_ok=True)
+
+device = args.device
+if not torch.cuda.is_available():
+    device = "cpu"
 
 ##############################################################################
-# 4. Gradio UI
+# Model Initialization
 ##############################################################################
 
-def run_gradio_ui(pipelines_dict):
-    """
-    Launches a simple Gradio app demonstrating:
-      1) Text generation with DistilGPT2 (if loaded).
-      2) ResNet-50 image classification (if loaded).
-    """
-    import gradio as gr
-
-    # Text generation function
-    def generate_text(prompt):
-        if "text_generation" not in pipelines_dict:
-            return "Text generation pipeline not loaded."
-        result = pipelines_dict["text_generation"](prompt, max_length=40, do_sample=True)
-        return result[0]["generated_text"]
-
-    # ResNet image classification function
-    def classify_image(image):
-        if "resnet_classification" not in pipelines_dict:
-            return "ResNet classification pipeline not loaded."
-        results = pipelines_dict["resnet_classification"](image)
-        return results
-
-    with gr.Blocks() as demo:
-        gr.Markdown("# THANN Demo: Text Generation & ResNet Classification")
-
-        with gr.Tab("Text Generation"):
-            text_input = gr.Textbox(lines=3, label="Enter your prompt:")
-            text_output = gr.Textbox(label="Generated Text")
-            generate_button = gr.Button("Generate")
-            generate_button.click(fn=generate_text, inputs=text_input, outputs=text_output)
-
-        with gr.Tab("ResNet Image Classification"):
-            image_input = gr.Image(label="Upload an image", type="pil")
-            image_output = gr.JSON(label="Classification Results")
-            classify_button = gr.Button("Classify")
-            classify_button.click(fn=classify_image, inputs=image_input, outputs=image_output)
-
-        demo.launch()
-
+timer.start("Initializing model")
+model = TSR.from_pretrained(
+    args.pretrained_model_name_or_path,
+    config_name="config.yaml",
+    weight_name="model.ckpt",
+)
+model.renderer.set_chunk_size(args.chunk_size)
+model.to(device)
+timer.end("Initializing model")
 
 ##############################################################################
-# 5. Main Script
+# Image / Dataset Processing
 ##############################################################################
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--demo", action="store_true",
-                        help="Run demonstration: pipelines + embeddings.")
-    parser.add_argument("--ui", action="store_true",
-                        help="Launch Gradio UI for text & image classification.")
-    args = parser.parse_args()
+timer.start("Processing images")
+if args.dataset == "custom":
+    if len(args.image) == 0:
+        logging.error("No image paths provided and dataset mode is 'custom'. Exiting.")
+        exit(1)
+    images = load_custom_images(args.image)
+elif args.dataset == "coco":
+    if args.dataset_dir == "":
+        logging.error("Please provide --dataset-dir for the COCO dataset.")
+        exit(1)
+    images = load_coco_dataset(args.dataset_dir)
+elif args.dataset == "shapenet":
+    if args.dataset_dir == "":
+        logging.error("Please provide --dataset-dir for the ShapeNet dataset.")
+        exit(1)
+    images = load_shapenet_dataset(args.dataset_dir)
+else:
+    images = []
 
-    if args.demo or args.ui:
-        # Create pipelines
-        pipelines_dict = create_multimodal_pipelines()
+# If background removal is enabled, process the images accordingly
+processed_images = []
+if not args.no_remove_bg:
+    rembg_session = rembg.new_session()
+    for i, image in enumerate(images):
+        image = remove_background(Image.fromarray(image), rembg_session)
+        image = resize_foreground(image, args.foreground_ratio)
+        image = np.array(image).astype(np.float32) / 255.0
+        image = image[:, :, :3] * image[:, :, 3:4] + (1 - image[:, :, 3:4]) * 0.5
+        image = Image.fromarray((image * 255.0).astype(np.uint8))
+        # Save processed image to output directory
+        image_output_dir = os.path.join(output_dir, str(i))
+        os.makedirs(image_output_dir, exist_ok=True)
+        image.save(os.path.join(image_output_dir, f"input.png"))
+        processed_images.append(image)
+else:
+    # If no background removal, assume images are ready to be used
+    processed_images = [Image.fromarray(image) for image in images]
+timer.end("Processing images")
 
-    if args.demo:
-        # 1) Print loaded pipelines
-        print(f"\nLoaded pipelines: {list(pipelines_dict.keys())}")
+##############################################################################
+# Model Inference, Rendering, Mesh Extraction & Export
+##############################################################################
 
-        # 2) Sentence embeddings example
-        sentences, sim_matrix = example_sentence_embeddings()
-        print("\n=== Sentence Embeddings Demo ===")
-        print("Sentences:", sentences)
-        print("Similarity Matrix:\n", sim_matrix)
+for i, image in enumerate(processed_images):
+    logging.info(f"Running image {i + 1}/{len(processed_images)} ...")
 
-        # 3) Quick text generation test (if pipeline loaded)
-        if "text_generation" in pipelines_dict:
-            print("\n=== DistilGPT2 Text Generation Demo ===")
-            prompt = "Once upon a time, in a land far away,"
-            output = pipelines_dict["text_generation"](
-                prompt,
-                max_length=40,
-                do_sample=True
-            )
-            print("Generated text:", output[0]["generated_text"])
-        else:
-            print("[text_generation] pipeline not loaded.")
-    
-    if args.ui:
-        # Launch the Gradio UI for text and image classification
-        run_gradio_ui(pipelines_dict)
+    timer.start("Running model")
+    with torch.no_grad():
+        scene_codes = model([image], device=device)
+    timer.end("Running model")
+
+    if args.render:
+        timer.start("Rendering")
+        render_images = model.render(scene_codes, n_views=30, return_type="pil")
+        for ri, render_image in enumerate(render_images[0]):
+            render_image.save(os.path.join(output_dir, str(i), f"render_{ri:03d}.png"))
+        save_video(render_images[0], os.path.join(output_dir, str(i), f"render.mp4"), fps=30)
+        timer.end("Rendering")
+
+    timer.start("Extracting mesh")
+    meshes = model.extract_mesh(scene_codes, not args.bake_texture, resolution=args.mc_resolution)
+    timer.end("Extracting mesh")
+
+    out_mesh_path = os.path.join(output_dir, str(i), f"mesh.{args.model_save_format}")
+    if args.bake_texture:
+        out_texture_path = os.path.join(output_dir, str(i), "texture.png")
+
+        timer.start("Baking texture")
+        bake_output = bake_texture(meshes[0], model, scene_codes[0], args.texture_resolution)
+        timer.end("Baking texture")
+
+        timer.start("Exporting mesh and texture")
+        xatlas.export(out_mesh_path,
+                      meshes[0].vertices[bake_output["vmapping"]],
+                      bake_output["indices"],
+                      bake_output["uvs"],
+                      meshes[0].vertex_normals[bake_output["vmapping"]])
+        Image.fromarray((bake_output["colors"] * 255.0).astype(np.uint8))\
+             .transpose(Image.FLIP_TOP_BOTTOM)\
+             .save(out_texture_path)
+        timer.end("Exporting mesh and texture")
     else:
-        if not args.demo:
-            print("Usage examples:")
-            print("  python thann.py --demo  (run pipeline demos)")
-            print("  python thann.py --ui    (launch Gradio UI)")
-
-
-if __name__ == "__main__":
-    main()
+        timer.start("Exporting mesh")
+        meshes[0].export(out_mesh_path)
+        timer.end("Exporting mesh")
