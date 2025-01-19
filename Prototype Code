@@ -4,23 +4,23 @@
 """
 thann.py
 --------
-A production-ready example of a Toroidal Hive (THANN) prototype.
-This version demonstrates two key components:
-  1. THANN Model Blueprint:
-       - A conceptual ToroidalHiveModel (an LSTM with a feedback loop).
-       - This blueprint represents ideas for self-healing, adaptive, and swarm-based learning.
-  2. Multimodal Pipelines Using Hugging Face Models:
-       - Pipelines for text generation, fill-mask, image classification, zero-shot image classification, and text-to-text generation.
-       
+A simplified, working prototype of a Toroidal Hive (THANN) neural network.
+This code demonstrates:
+  - A conceptual THANN model using an LSTM with a feedback loop.
+  - Integration of a GPT-style text generation pipeline (using DistilGPT2).
+  - Multimodal support via Hugging Face pipelines (including fill-mask and image classification).
+  - A demonstration mode that prints out sentence embeddings and generated text.
+  
 Requirements:
   pip install torch transformers sentence-transformers
 """
 
 import argparse
+import time
 import torch
 import numpy as np
 
-# Hugging Face Transformers
+# Hugging Face Transformers and Sentence Transformers
 from transformers import (
     pipeline,
     AutoTokenizer,
@@ -32,8 +32,6 @@ from transformers import (
     AutoModelForZeroShotImageClassification,
     AutoModelForSeq2SeqLM
 )
-
-# Sentence Transformers (for embeddings/similarity)
 from sentence_transformers import SentenceTransformer
 
 ##############################################################################
@@ -42,13 +40,11 @@ from sentence_transformers import SentenceTransformer
 
 class ToroidalHiveModel(torch.nn.Module):
     """
-    A conceptual neural network illustrating a 'toroidal' feedback loop.
-    In an advanced THANN system, you would also include:
-      - Self-healing or error correction layers
-      - Emotional weighting or adaptive learning rates
-      - Possibly quantum modules (e.g., using Qiskit)
-      - Swarm-based multi-agent logic
-    This simplified version implements an LSTM with a basic feedback mechanism.
+    A conceptual neural network with a toroidal feedback loop.
+    In a complete THANN system, additional self-healing, adaptive, quantum,
+    and swarm-based components would be included.
+    
+    This simplified version uses an LSTM with a basic feedback mechanism.
     """
     def __init__(self, hidden_size=256, vocab_size=30522):
         super(ToroidalHiveModel, self).__init__()
@@ -58,104 +54,82 @@ class ToroidalHiveModel(torch.nn.Module):
         self.feedback_transform = torch.nn.Linear(vocab_size, hidden_size)
 
     def forward(self, input_ids, hidden=None):
-        # 1. Get embeddings
+        # 1. Input embeddings
         emb = self.embedding(input_ids)
         # 2. Process through LSTM
         output, (h_n, c_n) = self.lstm(emb, hidden)
         # 3. Produce logits
         logits = self.classifier(output)
-        # 4. Create simple feedback (averaged softmax of the logits)
+        # 4. Feedback: average softmax across time and convert back to hidden space
         feedback = torch.softmax(logits, dim=-1).mean(dim=1)
         feedback_hidden = self.feedback_transform(feedback)
-        # (In a complete design, feedback_hidden could be reintroduced to steer learning.)
+        # (In a more advanced version, this feedback_hidden might be reintroduced.)
         return logits, (h_n, c_n)
 
 ##############################################################################
-# 2. Multimodal Pipelines Using Smaller, Real Models
+# 2. Multimodal Pipelines
 ##############################################################################
 
-def create_multimodal_pipelines():
+def create_pipelines():
     """
-    Returns a dictionary of Hugging Face pipeline objects for:
-      - Text Generation (using DistilGPT2)
-      - Fill-Mask (using BERT)
-      - Image Classification (using ViT)
-      - Zero-Shot Image Classification (using CLIP)
-      - Text2Text Generation (using FLAN-T5-Small)
-    Each model is chosen to be relatively small.
+    Create a set of pipelines for various tasks:
+      - Text Generation using DistilGPT2 (GPT-style for our THANN text component)
+      - Fill-Mask using BERT (for contextual completion)
+      - Image Classification using ViT (for visual task demonstration)
+      - Zero-Shot Image Classification using CLIP (for flexible image understanding)
+      - Text2Text Generation using FLAN-T5-Small (for rephrasing or summarization)
     """
     pipelines_dict = {}
 
-    # TEXT GENERATION using DistilGPT2
+    # Text Generation (GPT-style)
     try:
-        text_gen_tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
-        text_gen_model = AutoModelForCausalLM.from_pretrained("distilgpt2")
-        pipelines_dict["text_generation"] = pipeline(
-            "text-generation",
-            model=text_gen_model,
-            tokenizer=text_gen_tokenizer
-        )
+        tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
+        model = AutoModelForCausalLM.from_pretrained("distilgpt2")
+        pipelines_dict["text_generation"] = pipeline("text-generation", model=model, tokenizer=tokenizer)
     except Exception as e:
-        print(f"[Warning] Failed to load text-generation (distilgpt2): {e}")
+        print(f"[Warning] Text generation pipeline error: {e}")
 
-    # FILL-MASK using BERT base
+    # Fill-Mask using BERT
     try:
-        fill_mask_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-        fill_mask_model = AutoModelForMaskedLM.from_pretrained("bert-base-uncased")
-        pipelines_dict["fill_mask"] = pipeline(
-            "fill-mask",
-            model=fill_mask_model,
-            tokenizer=fill_mask_tokenizer
-        )
+        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+        model = AutoModelForMaskedLM.from_pretrained("bert-base-uncased")
+        pipelines_dict["fill_mask"] = pipeline("fill-mask", model=model, tokenizer=tokenizer)
     except Exception as e:
-        print(f"[Warning] Failed to load fill-mask (bert-base-uncased): {e}")
+        print(f"[Warning] Fill-mask pipeline error: {e}")
 
-    # IMAGE CLASSIFICATION using ViT base
+    # Image Classification using ViT
     try:
-        image_processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
-        image_model = AutoModelForImageClassification.from_pretrained("google/vit-base-patch16-224")
-        pipelines_dict["image_classification"] = pipeline(
-            "image-classification",
-            model=image_model,
-            feature_extractor=image_processor
-        )
+        processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
+        model = AutoModelForImageClassification.from_pretrained("google/vit-base-patch16-224")
+        pipelines_dict["image_classification"] = pipeline("image-classification", model=model, feature_extractor=processor)
     except Exception as e:
-        print(f"[Warning] Failed to load image-classification (vit-base): {e}")
+        print(f"[Warning] Image classification pipeline error: {e}")
 
-    # ZERO-SHOT IMAGE CLASSIFICATION using CLIP base
+    # Zero-Shot Image Classification using CLIP
     try:
-        zero_shot_processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
-        zero_shot_model = AutoModelForZeroShotImageClassification.from_pretrained("openai/clip-vit-base-patch32")
-        pipelines_dict["zero_shot_image"] = pipeline(
-            "zero-shot-image-classification",
-            model=zero_shot_model,
-            feature_extractor=zero_shot_processor
-        )
+        processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
+        model = AutoModelForZeroShotImageClassification.from_pretrained("openai/clip-vit-base-patch32")
+        pipelines_dict["zero_shot_image"] = pipeline("zero-shot-image-classification", model=model, feature_extractor=processor)
     except Exception as e:
-        print(f"[Warning] Failed to load zero-shot-image (clip-vit-base-patch32): {e}")
+        print(f"[Warning] Zero-shot image pipeline error: {e}")
 
-    # TEXT2TEXT GENERATION using FLAN-T5-Small
+    # Text2Text Generation using FLAN-T5-Small
     try:
-        text2text_tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
-        text2text_model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
-        pipelines_dict["text2text_generation"] = pipeline(
-            "text2text-generation",
-            model=text2text_model,
-            tokenizer=text2text_tokenizer
-        )
+        tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
+        model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
+        pipelines_dict["text2text_generation"] = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
     except Exception as e:
-        print(f"[Warning] Failed to load text2text-generation (flan-t5-small): {e}")
+        print(f"[Warning] Text2text pipeline error: {e}")
 
     return pipelines_dict
 
 ##############################################################################
-# 3. Sentence Embeddings Example
+# 3. Sentence Embeddings Demo
 ##############################################################################
 
-def example_sentence_embeddings():
+def demo_sentence_embeddings():
     """
-    Demonstrates how to compute embeddings with SentenceTransformer
-    (all-MiniLM-L6-v2) and prints a dot-product similarity matrix.
+    Compute and print a similarity matrix for a set of example sentences.
     """
     st_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
     sentences = [
@@ -166,39 +140,49 @@ def example_sentence_embeddings():
     ]
     embeddings = st_model.encode(sentences)
     sim_matrix = np.inner(embeddings, embeddings)
-    return sentences, sim_matrix
+    print("Sentence Embeddings Demo")
+    print("Sentences:", sentences)
+    print("Similarity Matrix:\n", sim_matrix)
 
 ##############################################################################
-# 4. Main Script for Demo
+# 4. Main Demo Function
 ##############################################################################
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--demo", action="store_true", help="Run demonstration of pipelines and sentence embeddings.")
+    parser.add_argument("--demo", action="store_true", help="Run demo of THANN components and pipelines.")
     args = parser.parse_args()
 
     if args.demo:
-        # Demonstrate the multimodal pipelines
-        pipelines_dict = create_multimodal_pipelines()
-        print("\nLoaded pipelines:", list(pipelines_dict.keys()))
+        print("=== THANN Prototype Demo ===\n")
+        
+        # Part A: Demonstrate the THANN model blueprint (conceptual)
+        print("1. Testing THANN Model Blueprint with random input.")
+        # Create a random input tensor (simulate token indices)
+        input_tensor = torch.randint(low=0, high=30522, size=(1, 10))
+        model_blueprint = ToroidalHiveModel()
+        logits, _ = model_blueprint(input_tensor)
+        print("Output logits shape:", logits.shape)
 
+        # Part B: Run multimodal pipelines demo
+        pipelines = create_pipelines()
+        print("\n2. Loaded pipelines:", list(pipelines.keys()))
+        
         # Sentence Embeddings Demo
-        sentences, sim_matrix = example_sentence_embeddings()
-        print("\n=== Sentence Embeddings Demo ===")
-        print("Sentences:", sentences)
-        print("Similarity Matrix:\n", sim_matrix)
-
-        # Quick Text Generation Test
-        if "text_generation" in pipelines_dict:
-            print("\n=== DistilGPT2 Text Generation Demo ===")
-            prompt = "Once upon a time, in a land far away,"
-            output = pipelines_dict["text_generation"](prompt, max_length=40, do_sample=True)
-            print("Generated text:", output[0]["generated_text"])
+        demo_sentence_embeddings()
+        
+        # Quick Text Generation Demo using GPT-style pipeline
+        if "text_generation" in pipelines:
+            prompt = "Once upon a time, in a futuristic land,"
+            result = pipelines["text_generation"](prompt, max_length=40, do_sample=True)
+            print("\n3. Text Generation Demo")
+            print("Prompt:", prompt)
+            print("Generated:", result[0]["generated_text"])
         else:
-            print("[text_generation] pipeline not loaded.")
+            print("[text_generation] pipeline not available.")
     else:
         print("Usage: python thann.py --demo")
-        print("This demo shows the THANN model blueprint along with multimodal pipelines.")
+        print("Run this script with --demo to see the THANN prototype in action.")
 
 if __name__ == "__main__":
     main()
