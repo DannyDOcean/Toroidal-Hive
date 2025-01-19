@@ -2,30 +2,24 @@
 # -*- coding: utf-8 -*-
 
 """
-Toroidal Hive (THANN) Multimodal Prototype
-------------------------------------------
-This script demonstrates how you might stitch together various Hugging Face and
-Nanotron components into a single codebase. It includes:
+THANN without Nanotron
+----------------------
+This script demonstrates a simplified 'Toroidal Hive' AI prototype
+*without* the Nanotron library. It includes:
 
-1. Imports and environment setup.
-2. A conceptual 'ToroidalHiveModel' class illustrating how you might layer different
-   neural components in a looped/toroidal structure.
-3. Integration of multiple Hugging Face pipelines for text, fill-mask, image classification,
-   and zero-shot tasks.
-4. Example usage of vLLM server calls (commented for clarity).
-5. Example usage of the Nanotron-based training script for advanced large-scale training.
-6. A main() function to tie it all together.
+1. A ToroidalHiveModel class (PyTorch) illustrating a conceptual
+   feedback loop for self-healing or other advanced logic.
+2. Multiple Hugging Face pipelines for text, fill-mask, and images.
+3. A SentenceTransformer example for embeddings and similarity.
 """
 
 import argparse
 import logging
 import os
 
-# 1. Standard Scientific & ML Libraries
 import torch
 import numpy as np
 
-# 2. Hugging Face Transformers & Related
 from transformers import (
     pipeline,
     AutoTokenizer,
@@ -37,103 +31,70 @@ from transformers import (
     AutoModelForZeroShotImageClassification,
     AutoModelForSeq2SeqLM
 )
-
-# 3. Sentence Transformers (for embeddings/similarity)
 from sentence_transformers import SentenceTransformer
 
-# 4. vLLM (optional, for serving large language models efficiently)
-#    pip install vllm to use
-# from vllm import LLMEngine  # Example usage if needed
-
-# 5. Nanotron (for advanced distributed training)
-#    This requires the nanotron library to be installed
-from nanotron.trainer import DistributedTrainer
-from nanotron.config import DataArgs, DatasetStageArgs, NanosetDatasetsArgs, PretrainDatasetsArgs
-from nanotron import logging as nanotron_logging
-# from nanotron.dataloader import (
-#     clm_process,
-#     dummy_infinite_data_generator,
-#     get_datasets,
-#     get_train_dataloader
-# )
-# from nanotron.helpers import (
-#     compute_remain_train_steps_of_a_data_stage_from_ckp,
-#     get_consumed_train_samples_of_a_data_stage_from_ckp
-# )
-# -- The above are used in the example training loop below. Uncomment as needed.
-
 ##############################################################################
-#  Toroidal Hive Model (Conceptual Example)
+# 1. Toroidal Hive Model (Conceptual)
 ##############################################################################
 
 class ToroidalHiveModel(torch.nn.Module):
     """
-    A conceptual neural network class that represents a 'toroidal' architecture.
-    The idea is that outputs from later layers can feed back to earlier layers
-    in a circular (toroidal) fashion, facilitating redundancy and self-healing.
-
-    In practice, you would implement advanced logic for:
-      - Self-healing (detecting and correcting internal errors).
-      - Social Hive Learning (multiple agents).
-      - Emotion-Driven Learning signals.
-      - Quantum integration (if linking to a quantum simulator or Qiskit code).
-
-    For demonstration, this just shows how you might wire up a looped structure.
+    A conceptual neural network class representing a toroidal
+    (looped) architecture. In a real system, you might implement:
+      - Self-healing logic
+      - Emotion-driven weight adjustments
+      - Quantum-enabled layers
+      - Social Hive Learning (distributed)
+    Here, it’s just a simple LSTM with a feedback mechanism.
     """
     def __init__(self, hidden_size=256, vocab_size=30522):
         super(ToroidalHiveModel, self).__init__()
-        # Example layers: input, hidden, output
         self.embedding = torch.nn.Embedding(num_embeddings=vocab_size, embedding_dim=hidden_size)
         self.lstm = torch.nn.LSTM(hidden_size, hidden_size, batch_first=True)
         self.classifier = torch.nn.Linear(hidden_size, vocab_size)
 
-        # Additional loop or redundancy layers can be defined here
-        # to simulate toroidal feedback. For example:
+        # Example feedback transformation
         self.feedback_transform = torch.nn.Linear(vocab_size, hidden_size)
 
     def forward(self, input_ids, hidden=None):
         """
         Forward pass with a conceptual feedback loop:
           1. Embedding
-          2. LSTM (or other recurrent/transformer module)
-          3. Classifier (outputs logits over vocab)
-          4. 'Feedback' from output re-encoded to hidden space
+          2. LSTM (or other module)
+          3. Classifier
+          4. (Optional) feedback re-injection
         """
 
-        # 1. Basic embedding
+        # 1. Embedding
         emb = self.embedding(input_ids)
 
-        # 2. LSTM or alternative
+        # 2. LSTM
         output, (h_n, c_n) = self.lstm(emb, hidden)
 
-        # 3. Classify to vocab logits
+        # 3. Classifier (logits over vocabulary)
         logits = self.classifier(output)
 
-        # 4. Toy feedback: feed the logits back as if it were next input
-        #    (In a real scenario, you might do something more sophisticated.)
+        # 4. Simple feedback demonstration:
+        #    We average logits along the time dimension and transform back
         feedback = torch.softmax(logits, dim=-1).mean(dim=1)
         feedback_hidden = self.feedback_transform(feedback)
-
-        # Here you could re-inject feedback_hidden into the model or store it
-        # for self-healing or other advanced steps.
+        # You could do something more sophisticated with feedback_hidden...
 
         return logits, (h_n, c_n)
 
 ##############################################################################
-#  Example: Multiple Hugging Face Pipelines (Multimodal)
+# 2. Multimodal Pipelines (Hugging Face)
 ##############################################################################
 
 def create_multimodal_pipelines():
     """
-    Demonstrates how you could create multiple Hugging Face pipelines for
-    text generation, masked language modelling, image classification, etc.
-    This function returns a dictionary of pipeline objects for easy referencing.
+    Returns a dictionary of pipeline objects for text generation,
+    fill-mask, image classification, zero-shot image classification,
+    and text2text generation.
     """
-
     pipelines_dict = {}
 
-    # 1) Text Generation (example: meta-llama/Llama-3.3-70B-Instruct)
-    #    Replace this model name with one that is accessible in your environment.
+    # Text Generation (example: meta-llama/Llama-3.3-70B-Instruct)
     try:
         text_gen_tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.3-70B-Instruct")
         text_gen_model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.3-70B-Instruct")
@@ -143,9 +104,9 @@ def create_multimodal_pipelines():
             tokenizer=text_gen_tokenizer
         )
     except Exception as e:
-        print(f"Text generation pipeline not loaded: {e}")
+        print(f"[Warning] Failed to load text-generation pipeline: {e}")
 
-    # 2) Fill-Mask (example: google-bert/bert-base-uncased)
+    # Fill-Mask (example: google-bert/bert-base-uncased)
     try:
         fill_mask_tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
         fill_mask_model = AutoModelForMaskedLM.from_pretrained("google-bert/bert-base-uncased")
@@ -155,9 +116,9 @@ def create_multimodal_pipelines():
             tokenizer=fill_mask_tokenizer
         )
     except Exception as e:
-        print(f"Fill-mask pipeline not loaded: {e}")
+        print(f"[Warning] Failed to load fill-mask pipeline: {e}")
 
-    # 3) Image Classification (example: microsoft/resnet-50)
+    # Image Classification (example: microsoft/resnet-50)
     try:
         image_processor = AutoImageProcessor.from_pretrained("microsoft/resnet-50")
         image_model = AutoModelForImageClassification.from_pretrained("microsoft/resnet-50")
@@ -167,9 +128,9 @@ def create_multimodal_pipelines():
             feature_extractor=image_processor
         )
     except Exception as e:
-        print(f"Image classification pipeline not loaded: {e}")
+        print(f"[Warning] Failed to load image-classification pipeline: {e}")
 
-    # 4) Zero-Shot Image Classification (example: openai/clip-vit-large-patch14)
+    # Zero-Shot Image Classification (example: openai/clip-vit-large-patch14)
     try:
         zero_shot_processor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
         zero_shot_model = AutoModelForZeroShotImageClassification.from_pretrained("openai/clip-vit-large-patch14")
@@ -179,9 +140,9 @@ def create_multimodal_pipelines():
             feature_extractor=zero_shot_processor
         )
     except Exception as e:
-        print(f"Zero-shot image classification pipeline not loaded: {e}")
+        print(f"[Warning] Failed to load zero-shot-image-classification pipeline: {e}")
 
-    # 5) Text2Text Generation (example: mrm8488/t5-base-finetuned-emotion)
+    # Text2Text Generation (example: mrm8488/t5-base-finetuned-emotion)
     try:
         text2text_tokenizer = AutoTokenizer.from_pretrained("mrm8488/t5-base-finetuned-emotion")
         text2text_model = AutoModelForSeq2SeqLM.from_pretrained("mrm8488/t5-base-finetuned-emotion")
@@ -191,22 +152,20 @@ def create_multimodal_pipelines():
             tokenizer=text2text_tokenizer
         )
     except Exception as e:
-        print(f"Text2Text generation pipeline not loaded: {e}")
+        print(f"[Warning] Failed to load text2text-generation pipeline: {e}")
 
     return pipelines_dict
 
-
 ##############################################################################
-#  Example: Sentence Transformers for Embedding Similarities
+# 3. Example Sentence Embeddings
 ##############################################################################
 
 def example_sentence_embeddings():
     """
-    Shows how to use SentenceTransformer to embed sentences
-    and compute similarities. 
+    Demonstrates how to compute embeddings using
+    SentenceTransformer and measure similarity.
     """
     model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-
     sentences = [
         "That is a happy person",
         "That is a happy dog",
@@ -215,157 +174,41 @@ def example_sentence_embeddings():
     ]
     embeddings = model.encode(sentences)
 
-    # naive similarity matrix
-    # Many SentenceTransformer versions have a built-in similarity method,
-    # but here we do a simple pairwise dot product or something similar:
+    # Create a simple similarity matrix via dot product
     sim_matrix = np.inner(embeddings, embeddings)
     return sentences, sim_matrix
 
-
 ##############################################################################
-#  (Optional) vLLM Example: Serving a Model
-##############################################################################
-# If you want to serve a large model locally using vLLM, you might do something like:
-#
-# 1) Install vLLM:
-#       pip install vllm
-# 2) Run the server:
-#       vllm serve "bartowski/Buzz-8b-Large-v0.5-GGUF"
-# 3) Query with curl or a Python request.
-#
-# The code snippet from your example is:
-#
-#   curl -X POST "http://localhost:8000/v1/completions" \
-#         -H "Content-Type: application/json" \
-#         --data '{
-#             "model": "bartowski/Buzz-8b-Large-v0.5-GGUF",
-#             "prompt": "Once upon a time,",
-#             "max_tokens": 512,
-#             "temperature": 0.5
-#         }'
-#
-# Adjust as necessary for your environment.
-
-
-##############################################################################
-#  (Optional) Nanotron Training Flow
-##############################################################################
-
-"""
-Below is a simplified integration example of how you might wire a training script
-using the Nanotron library and a custom ToroidalHiveModel. This references the 
-code snippet you provided. 
-
-In practice, you'd store your config in a YAML or Python file, 
-then run:
-
-  torchrun --nproc_per_node=8 run_train.py --config-file examples/config_tiny_llama.yaml
-
-Here, for demonstration, we show a single process with a 
-'DistributedTrainer' usage. 
-"""
-
-def train_toroidal_hive(config_file_path: str):
-    """
-    Loads a training configuration for Nanotron and trains the ToroidalHiveModel
-    using a conceptual data loader approach.
-
-    This is a placeholder function: adapt it to your real config and data paths.
-    """
-    # 1. Create the Nanotron distributed trainer
-    trainer = DistributedTrainer(config_file_path)
-
-    # 2. Build your custom ToroidalHiveModel
-    #    In reality, you'd pass hyperparameters from config/trainer
-    model = ToroidalHiveModel(hidden_size=256, vocab_size=trainer.model_config.vocab_size).to(trainer.device)
-
-    trainer.model = model  # attach to trainer
-
-    # 3. Create your dataloaders from the snippet
-    #    The user code snippet had a get_dataloader(...) that sets up multiple data stages
-    dataloaders = get_dataloader(trainer)  # This references the snippet approach
-
-    # 4. Train
-    trainer.train(dataloaders)
-
-    return model
-
-# We replicate the get_dataloader function from your snippet, stripped for brevity:
-def get_dataloader(trainer: DistributedTrainer):
-    """
-    Placeholder that returns the training dataloaders for each stage
-    from your config. In real usage, this references the data and config 
-    from your snippet. 
-    """
-    # This function must create or retrieve the DataLoader objects needed.
-    # For demonstration, we'll return an empty dict or mock object.
-    # Replace with the actual logic from your snippet.
-    return {}
-
-
-##############################################################################
-#  Main Driver
+# 4. Main Driver
 ##############################################################################
 
 def main():
-    """
-    Main driver function to:
-      1. Demonstrate usage of multiple pipelines (multimodal).
-      2. Optionally demonstrate sentence embedding similarity.
-      3. Show how you might initiate a training job with Nanotron 
-         for the custom 'ToroidalHiveModel'.
-    """
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config-file",
-        type=str,
-        default="examples/config_tiny_llama.yaml",
-        help="Path to a Nanotron-compatible YAML or Python config file."
-    )
-    parser.add_argument(
-        "--train",
-        action="store_true",
-        help="Include this flag if you want to run the training loop."
-    )
+    parser.add_argument("--demo", action="store_true", help="Run a quick demonstration of pipelines and embeddings.")
     args = parser.parse_args()
 
-    # 1) Create our multimodal pipelines
-    print("\n=== Creating Multimodal Pipelines ===")
-    pipelines_dict = create_multimodal_pipelines()
-    print("Available pipelines:", list(pipelines_dict.keys()))
+    if args.demo:
+        # 1) Create all the pipelines
+        pipelines_dict = create_multimodal_pipelines()
+        print(f"Loaded pipelines: {list(pipelines_dict.keys())}")
 
-    # 2) Use sentence embedding example
-    print("\n=== Example: Sentence Embeddings ===")
-    sentences, sim_matrix = example_sentence_embeddings()
-    print("Sentences:", sentences)
-    print("Similarity Matrix:\n", sim_matrix)
+        # 2) Demo sentence embeddings
+        sentences, sim_matrix = example_sentence_embeddings()
+        print("\n=== Sentence Embeddings Demo ===")
+        print("Sentences:", sentences)
+        print("Similarity Matrix:\n", sim_matrix)
 
-    # 3) (Optional) Train our Toroidal Hive model using Nanotron
-    if args.train:
-        print("\n=== Training Toroidal Hive Model with Nanotron ===")
-        trained_model = train_toroidal_hive(args.config_file)
-        print("Training complete. Model is ready.")
+        # 3) Optional quick text generation test
+        if "text_generation" in pipelines_dict:
+            print("\n=== Text Generation Demo ===")
+            prompt = "Once upon a time, in a land far away,"
+            output = pipelines_dict["text_generation"](prompt, max_length=40, do_sample=True)
+            print("Generated text:", output[0]["generated_text"])
+        else:
+            print("\n[text_generation] pipeline not loaded.")
 
-    # 4) Simple demonstration of pipeline usage
-    if "text_generation" in pipelines_dict:
-        print("\n=== Demo: Text Generation ===")
-        generation_pipeline = pipelines_dict["text_generation"]
-        prompt = "Who are you?"
-        output = generation_pipeline(prompt, max_length=50, do_sample=True)
-        print("Generated text:", output[0]["generated_text"])
+    else:
+        print("Run with '--demo' to see pipeline demonstrations.")
 
-    if "fill_mask" in pipelines_dict:
-        print("\n=== Demo: Fill-Mask ===")
-        fill_pipeline = pipelines_dict["fill_mask"]
-        text = "Paris is the [MASK] of France."
-        predictions = fill_pipeline(text)
-        print("Fill-mask predictions:", predictions)
-
-    # etc. for other pipelines...
-
-    print("\n=== All Done ===")
-
-
-# Standard Python entry point
 if __name__ == "__main__":
     main()
