@@ -1,7 +1,3 @@
-Below is a **sample README document** that you can adapt for your GitHub repository. It explains the purpose of your Toroidal Hive (THANN) project, provides step-by-step instructions, and offers tips for contributing. Although it’s presented here in plain text (Markdown-friendly), you can copy and paste it into a Microsoft Word document if you prefer that format.
-
----
-
 # **Toroidal Hive (THANN) — README**
 
 ## **Overview**
