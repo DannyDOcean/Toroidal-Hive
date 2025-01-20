@@ -2,187 +2,154 @@
 # -*- coding: utf-8 -*-
 
 """
-thann.py
---------
-A simplified, working prototype of a Toroidal Hive (THANN) neural network.
-This code demonstrates:
-  - A conceptual THANN model using an LSTM with a feedback loop.
-  - Integration of a GPT-style text generation pipeline (using DistilGPT2).
-  - Multimodal support via Hugging Face pipelines (including fill-mask and image classification).
-  - A demonstration mode that prints out sentence embeddings and generated text.
-  
+thann_snn.py
+------------
+A Toroidal Hive (THANN) prototype integrating:
+  - A spiking-inspired neural network (SNN) with feedback loops.
+  - BrainGPTForCausalLM as a generative model.
+  - Multimodal pipelines for text, vision, and embeddings.
+
 Requirements:
   pip install torch transformers sentence-transformers
 """
 
 import argparse
-import time
 import torch
 import numpy as np
-
-# Hugging Face Transformers and Sentence Transformers
-from transformers import (
-    pipeline,
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    AutoModelForMaskedLM,
-    AutoImageProcessor,
-    AutoModelForImageClassification,
-    AutoProcessor,
-    AutoModelForZeroShotImageClassification,
-    AutoModelForSeq2SeqLM
-)
+from transformers import AutoTokenizer, BrainGPTForCausalLM, pipeline
 from sentence_transformers import SentenceTransformer
 
 ##############################################################################
-# 1. THANN Model Blueprint: ToroidalHiveModel
+# 1. Spiking-Inspired Neural Network: ToroidalHiveModel
 ##############################################################################
 
 class ToroidalHiveModel(torch.nn.Module):
     """
-    A conceptual neural network with a toroidal feedback loop.
-    In a complete THANN system, additional self-healing, adaptive, quantum,
-    and swarm-based components would be included.
-    
-    This simplified version uses an LSTM with a basic feedback mechanism.
+    A spiking-inspired neural network with feedback loops.
     """
     def __init__(self, hidden_size=256, vocab_size=30522):
         super(ToroidalHiveModel, self).__init__()
         self.embedding = torch.nn.Embedding(num_embeddings=vocab_size, embedding_dim=hidden_size)
         self.lstm = torch.nn.LSTM(hidden_size, hidden_size, batch_first=True)
         self.classifier = torch.nn.Linear(hidden_size, vocab_size)
+        self.spike_threshold = torch.nn.Parameter(torch.tensor(0.5))  # Spiking threshold
         self.feedback_transform = torch.nn.Linear(vocab_size, hidden_size)
 
     def forward(self, input_ids, hidden=None):
-        # 1. Input embeddings
         emb = self.embedding(input_ids)
-        # 2. Process through LSTM
         output, (h_n, c_n) = self.lstm(emb, hidden)
-        # 3. Produce logits
         logits = self.classifier(output)
-        # 4. Feedback: average softmax across time and convert back to hidden space
-        feedback = torch.softmax(logits, dim=-1).mean(dim=1)
+
+        # Simulate spikes: Neurons fire when logits exceed the threshold
+        spikes = (torch.sigmoid(logits) > self.spike_threshold).float()
+        feedback = spikes.mean(dim=1)
         feedback_hidden = self.feedback_transform(feedback)
-        # (In a more advanced version, this feedback_hidden might be reintroduced.)
-        return logits, (h_n, c_n)
+        return logits, (h_n, c_n), feedback_hidden
 
 ##############################################################################
-# 2. Multimodal Pipelines
+# 2. BrainGPT Integration for Text Generation
 ##############################################################################
 
-def create_pipelines():
+def initialize_brain_gpt(model_path):
     """
-    Create a set of pipelines for various tasks:
-      - Text Generation using DistilGPT2 (GPT-style for our THANN text component)
-      - Fill-Mask using BERT (for contextual completion)
-      - Image Classification using ViT (for visual task demonstration)
-      - Zero-Shot Image Classification using CLIP (for flexible image understanding)
-      - Text2Text Generation using FLAN-T5-Small (for rephrasing or summarization)
+    Initialize BrainGPT for causal text generation.
+    """
+    model = BrainGPTForCausalLM.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    return model, tokenizer, device
+
+def generate_brain_gpt_text(messages, model, tokenizer, device, max_new_tokens=50):
+    """
+    Generate text using BrainGPT with a chat-based template.
+    """
+    text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    model_inputs = tokenizer([text], return_tensors="pt").to(device)
+    
+    with torch.no_grad():
+        generated_ids = model.generate(**model_inputs, max_new_tokens=max_new_tokens)
+    
+    return tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+
+##############################################################################
+# 3. Multimodal Pipelines (Optional Components)
+##############################################################################
+
+def create_multimodal_pipelines():
+    """
+    Create multimodal pipelines for text, fill-mask, and image tasks.
     """
     pipelines_dict = {}
 
-    # Text Generation (GPT-style)
     try:
-        tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
-        model = AutoModelForCausalLM.from_pretrained("distilgpt2")
-        pipelines_dict["text_generation"] = pipeline("text-generation", model=model, tokenizer=tokenizer)
+        pipelines_dict["sentence_embeddings"] = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
     except Exception as e:
-        print(f"[Warning] Text generation pipeline error: {e}")
+        print(f"[Warning] Sentence Embeddings pipeline error: {e}")
 
-    # Fill-Mask using BERT
     try:
-        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-        model = AutoModelForMaskedLM.from_pretrained("bert-base-uncased")
-        pipelines_dict["fill_mask"] = pipeline("fill-mask", model=model, tokenizer=tokenizer)
+        pipelines_dict["text_generation"] = pipeline("text-generation", model="distilgpt2")
     except Exception as e:
-        print(f"[Warning] Fill-mask pipeline error: {e}")
-
-    # Image Classification using ViT
-    try:
-        processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
-        model = AutoModelForImageClassification.from_pretrained("google/vit-base-patch16-224")
-        pipelines_dict["image_classification"] = pipeline("image-classification", model=model, feature_extractor=processor)
-    except Exception as e:
-        print(f"[Warning] Image classification pipeline error: {e}")
-
-    # Zero-Shot Image Classification using CLIP
-    try:
-        processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
-        model = AutoModelForZeroShotImageClassification.from_pretrained("openai/clip-vit-base-patch32")
-        pipelines_dict["zero_shot_image"] = pipeline("zero-shot-image-classification", model=model, feature_extractor=processor)
-    except Exception as e:
-        print(f"[Warning] Zero-shot image pipeline error: {e}")
-
-    # Text2Text Generation using FLAN-T5-Small
-    try:
-        tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
-        model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
-        pipelines_dict["text2text_generation"] = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
-    except Exception as e:
-        print(f"[Warning] Text2text pipeline error: {e}")
+        print(f"[Warning] Text Generation pipeline error: {e}")
 
     return pipelines_dict
 
 ##############################################################################
-# 3. Sentence Embeddings Demo
+# 4. Demo Functionality
 ##############################################################################
 
-def demo_sentence_embeddings():
+def run_demo(brain_gpt_model, brain_gpt_tokenizer, device, toroidal_model):
     """
-    Compute and print a similarity matrix for a set of example sentences.
+    Run a full demo of THANN components.
     """
-    st_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    sentences = [
-        "That is a happy person",
-        "That is a happy dog",
-        "That is a very happy person",
-        "Today is a sunny day"
+    print("\n=== THANN Prototype Demo ===")
+
+    # BrainGPT Text Generation
+    print("\n1. BrainGPT Text Generation:")
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Explain the Pythagorean theorem."}
     ]
-    embeddings = st_model.encode(sentences)
-    sim_matrix = np.inner(embeddings, embeddings)
-    print("Sentence Embeddings Demo")
-    print("Sentences:", sentences)
-    print("Similarity Matrix:\n", sim_matrix)
+    response = generate_brain_gpt_text(messages, brain_gpt_model, brain_gpt_tokenizer, device)
+    print("Response:", response)
+
+    # ToroidalHiveModel Test
+    print("\n2. ToroidalHiveModel Spiking Simulation:")
+    input_tensor = torch.randint(0, 30522, (1, 10))  # Simulated input
+    logits, _, feedback_hidden = toroidal_model(input_tensor)
+    print("Logits shape:", logits.shape)
+    print("Feedback Hidden State:", feedback_hidden)
+
+    # Sentence Embeddings Demo
+    print("\n3. Sentence Embeddings Example:")
+    example_sentences = [
+        "This is a great day.",
+        "I love machine learning.",
+        "The sky is blue."
+    ]
+    st_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    embeddings = st_model.encode(example_sentences)
+    print("Embeddings Shape:", embeddings.shape)
 
 ##############################################################################
-# 4. Main Demo Function
+# 5. Main Script
 ##############################################################################
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--demo", action="store_true", help="Run demo of THANN components and pipelines.")
+    parser.add_argument("--demo", action="store_true", help="Run the THANN demo.")
     args = parser.parse_args()
 
-    if args.demo:
-        print("=== THANN Prototype Demo ===\n")
-        
-        # Part A: Demonstrate the THANN model blueprint (conceptual)
-        print("1. Testing THANN Model Blueprint with random input.")
-        # Create a random input tensor (simulate token indices)
-        input_tensor = torch.randint(low=0, high=30522, size=(1, 10))
-        model_blueprint = ToroidalHiveModel()
-        logits, _ = model_blueprint(input_tensor)
-        print("Output logits shape:", logits.shape)
+    model_path = "/path/to/your/BrainGPT/model"  # Update with actual model path
+    brain_gpt_model, brain_gpt_tokenizer, device = initialize_brain_gpt(model_path)
 
-        # Part B: Run multimodal pipelines demo
-        pipelines = create_pipelines()
-        print("\n2. Loaded pipelines:", list(pipelines.keys()))
-        
-        # Sentence Embeddings Demo
-        demo_sentence_embeddings()
-        
-        # Quick Text Generation Demo using GPT-style pipeline
-        if "text_generation" in pipelines:
-            prompt = "Once upon a time, in a futuristic land,"
-            result = pipelines["text_generation"](prompt, max_length=40, do_sample=True)
-            print("\n3. Text Generation Demo")
-            print("Prompt:", prompt)
-            print("Generated:", result[0]["generated_text"])
-        else:
-            print("[text_generation] pipeline not available.")
+    # Initialize ToroidalHiveModel
+    toroidal_model = ToroidalHiveModel()
+
+    if args.demo:
+        run_demo(brain_gpt_model, brain_gpt_tokenizer, device, toroidal_model)
     else:
-        print("Usage: python thann.py --demo")
-        print("Run this script with --demo to see the THANN prototype in action.")
+        print("Run with --demo to test the THANN prototype.")
 
 if __name__ == "__main__":
     main()
