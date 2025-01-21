@@ -1,24 +1,64 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-thann_snn_large.py
--------------------
-A scaled-up version of the Toroidal Hive Neural Network (THANN):
-  - Transformer-based architecture.
-  - Expanded to ~200 billion parameters.
-  - Sparse Mixture of Experts (MoE) for scalability.
-
-Requirements:
-  pip install torch transformers sentence-transformers
-"""
-
 import torch
 import torch.nn as nn
 from transformers import GPT2Model, AutoTokenizer
 
 ##############################################################################
-# 1. Transformer-Based Toroidal Hive Model with Mixture of Experts
+# 1. Learnt Tokenization Module
+##############################################################################
+
+class LearntTokenization(nn.Module):
+    """
+    A module to learn adaptive tokenization using convolution and attention.
+    """
+    def __init__(self, input_dim, hidden_size, kernel_sizes):
+        super(LearntTokenization, self).__init__()
+        self.convs = nn.ModuleList([nn.Conv1d(input_dim, hidden_size, k) for k in kernel_sizes])
+        self.attention = nn.MultiheadAttention(embed_dim=hidden_size, num_heads=4)
+
+    def forward(self, x):
+        # Apply convolution for tokenization
+        x = x.transpose(1, 2)  # Switch to (batch, features, seq_length) for Conv1d
+        conv_outputs = [torch.relu(conv(x)) for conv in self.convs]
+        tokenized = torch.cat(conv_outputs, dim=1)  # Concatenate features
+        tokenized = tokenized.transpose(1, 2)  # Switch back to (batch, seq_length, features)
+
+        # Apply attention for refinement
+        tokenized = tokenized.transpose(0, 1)  # Switch to (seq_length, batch, features) for attention
+        tokenized, _ = self.attention(tokenized, tokenized, tokenized)
+        return tokenized.transpose(0, 1)  # Back to (batch, seq_length, features)
+
+##############################################################################
+# 2. Toroidal Hive Model with Integrated Tokenization and MoE
+##############################################################################
+
+class ToroidalHiveModel(nn.Module):
+    """
+    A scaled Toroidal Hive model with learnt tokenization and Mixture of Experts.
+    """
+    def __init__(self, vocab_size=1000000, hidden_size=4096, num_layers=96, num_experts=128, expert_size=16384):
+        super(ToroidalHiveModel, self).__init__()
+        self.tokenizer = LearntTokenization(input_dim=hidden_size, hidden_size=hidden_size, kernel_sizes=[3, 5, 7])
+        self.embedding = nn.Embedding(vocab_size, hidden_size)
+        self.transformer = GPT2Model.from_pretrained("gpt2", config={
+            "vocab_size": vocab_size,
+            "n_embd": hidden_size,
+            "n_layer": num_layers,
+            "n_head": 32,
+            "n_inner": hidden_size * 4,  # Feed-forward size
+        })
+        self.moe_layer = MixtureOfExperts(num_experts=num_experts, hidden_size=hidden_size, expert_size=expert_size)
+        self.classifier = nn.Linear(hidden_size, vocab_size)
+
+    def forward(self, input_ids):
+        x = self.embedding(input_ids)
+        x = self.tokenizer(x)  # Apply learnt tokenization
+        x = self.transformer(inputs_embeds=x).last_hidden_state
+        x = self.moe_layer(x)
+        logits = self.classifier(x)
+        return logits
+
+##############################################################################
+# 3. Mixture of Experts
 ##############################################################################
 
 class SparseExpert(nn.Module):
@@ -47,7 +87,6 @@ class MixtureOfExperts(nn.Module):
         self.gating = nn.Linear(hidden_size, num_experts)
 
     def forward(self, x):
-        # Compute gating weights
         gate_scores = torch.softmax(self.gating(x), dim=-1)
         top_experts = gate_scores.topk(2, dim=-1)  # Select top 2 experts per input
         outputs = 0
@@ -56,44 +95,17 @@ class MixtureOfExperts(nn.Module):
             outputs += gate_scores[:, i:i+1] * expert_output
         return outputs
 
-
-class ToroidalHiveModel(nn.Module):
-    """
-    A scaled Toroidal Hive model with transformers and Mixture of Experts.
-    """
-    def __init__(self, vocab_size=1000000, hidden_size=4096, num_layers=96, num_experts=128, expert_size=16384):
-        super(ToroidalHiveModel, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, hidden_size)
-        self.transformer = GPT2Model.from_pretrained("gpt2", config={
-            "vocab_size": vocab_size,
-            "n_embd": hidden_size,
-            "n_layer": num_layers,
-            "n_head": 32,
-            "n_inner": hidden_size * 4,  # Feed-forward size
-        })
-        self.moe_layer = MixtureOfExperts(num_experts=num_experts, hidden_size=hidden_size, expert_size=expert_size)
-        self.classifier = nn.Linear(hidden_size, vocab_size)
-
-    def forward(self, input_ids):
-        x = self.embedding(input_ids)
-        x = self.transformer(inputs_embeds=x).last_hidden_state
-        x = self.moe_layer(x)
-        logits = self.classifier(x)
-        return logits
-
 ##############################################################################
-# 2. Main Script for Running the Model
+# 4. Main Script for Running the Model
 ##############################################################################
 
 def main():
-    # Define model parameters
     vocab_size = 1000000  # Large vocabulary size
     hidden_size = 4096    # Large hidden size
     num_layers = 96       # 96 transformer layers
     num_experts = 128     # Sparse Mixture of Experts with 128 experts
     expert_size = 16384   # Size of each expert
 
-    # Initialize the model
     model = ToroidalHiveModel(vocab_size=vocab_size, hidden_size=hidden_size, num_layers=num_layers,
                               num_experts=num_experts, expert_size=expert_size)
 
@@ -102,7 +114,7 @@ def main():
     logits = model(input_tensor)
 
     print("Model logits shape:", logits.shape)
-    print("Toroidal Hive Model initialized with approximately 200 billion parameters.")
+    print("Toroidal Hive Model initialized with learnt tokenization and approximately 200 billion parameters.")
 
 if __name__ == "__main__":
     main()
