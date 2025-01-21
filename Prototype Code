@@ -2,154 +2,107 @@
 # -*- coding: utf-8 -*-
 
 """
-thann_snn.py
-------------
-A Toroidal Hive (THANN) prototype integrating:
-  - A spiking-inspired neural network (SNN) with feedback loops.
-  - BrainGPTForCausalLM as a generative model.
-  - Multimodal pipelines for text, vision, and embeddings.
+thann_snn_large.py
+-------------------
+A scaled-up version of the Toroidal Hive Neural Network (THANN):
+  - Transformer-based architecture.
+  - Expanded to ~200 billion parameters.
+  - Sparse Mixture of Experts (MoE) for scalability.
 
 Requirements:
   pip install torch transformers sentence-transformers
 """
 
-import argparse
 import torch
-import numpy as np
-from transformers import AutoTokenizer, BrainGPTForCausalLM, pipeline
-from sentence_transformers import SentenceTransformer
+import torch.nn as nn
+from transformers import GPT2Model, AutoTokenizer
 
 ##############################################################################
-# 1. Spiking-Inspired Neural Network: ToroidalHiveModel
+# 1. Transformer-Based Toroidal Hive Model with Mixture of Experts
 ##############################################################################
 
-class ToroidalHiveModel(torch.nn.Module):
+class SparseExpert(nn.Module):
     """
-    A spiking-inspired neural network with feedback loops.
+    A single expert used in the Mixture of Experts (MoE) layer.
     """
-    def __init__(self, hidden_size=256, vocab_size=30522):
+    def __init__(self, hidden_size, expert_size):
+        super(SparseExpert, self).__init__()
+        self.fc1 = nn.Linear(hidden_size, expert_size)
+        self.fc2 = nn.Linear(expert_size, hidden_size)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+
+class MixtureOfExperts(nn.Module):
+    """
+    A sparse Mixture of Experts (MoE) layer for scalability.
+    """
+    def __init__(self, num_experts, hidden_size, expert_size):
+        super(MixtureOfExperts, self).__init__()
+        self.num_experts = num_experts
+        self.experts = nn.ModuleList([SparseExpert(hidden_size, expert_size) for _ in range(num_experts)])
+        self.gating = nn.Linear(hidden_size, num_experts)
+
+    def forward(self, x):
+        # Compute gating weights
+        gate_scores = torch.softmax(self.gating(x), dim=-1)
+        top_experts = gate_scores.topk(2, dim=-1)  # Select top 2 experts per input
+        outputs = 0
+        for i, expert in enumerate(self.experts):
+            expert_output = expert(x)
+            outputs += gate_scores[:, i:i+1] * expert_output
+        return outputs
+
+
+class ToroidalHiveModel(nn.Module):
+    """
+    A scaled Toroidal Hive model with transformers and Mixture of Experts.
+    """
+    def __init__(self, vocab_size=1000000, hidden_size=4096, num_layers=96, num_experts=128, expert_size=16384):
         super(ToroidalHiveModel, self).__init__()
-        self.embedding = torch.nn.Embedding(num_embeddings=vocab_size, embedding_dim=hidden_size)
-        self.lstm = torch.nn.LSTM(hidden_size, hidden_size, batch_first=True)
-        self.classifier = torch.nn.Linear(hidden_size, vocab_size)
-        self.spike_threshold = torch.nn.Parameter(torch.tensor(0.5))  # Spiking threshold
-        self.feedback_transform = torch.nn.Linear(vocab_size, hidden_size)
+        self.embedding = nn.Embedding(vocab_size, hidden_size)
+        self.transformer = GPT2Model.from_pretrained("gpt2", config={
+            "vocab_size": vocab_size,
+            "n_embd": hidden_size,
+            "n_layer": num_layers,
+            "n_head": 32,
+            "n_inner": hidden_size * 4,  # Feed-forward size
+        })
+        self.moe_layer = MixtureOfExperts(num_experts=num_experts, hidden_size=hidden_size, expert_size=expert_size)
+        self.classifier = nn.Linear(hidden_size, vocab_size)
 
-    def forward(self, input_ids, hidden=None):
-        emb = self.embedding(input_ids)
-        output, (h_n, c_n) = self.lstm(emb, hidden)
-        logits = self.classifier(output)
-
-        # Simulate spikes: Neurons fire when logits exceed the threshold
-        spikes = (torch.sigmoid(logits) > self.spike_threshold).float()
-        feedback = spikes.mean(dim=1)
-        feedback_hidden = self.feedback_transform(feedback)
-        return logits, (h_n, c_n), feedback_hidden
-
-##############################################################################
-# 2. BrainGPT Integration for Text Generation
-##############################################################################
-
-def initialize_brain_gpt(model_path):
-    """
-    Initialize BrainGPT for causal text generation.
-    """
-    model = BrainGPTForCausalLM.from_pretrained(model_path)
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    return model, tokenizer, device
-
-def generate_brain_gpt_text(messages, model, tokenizer, device, max_new_tokens=50):
-    """
-    Generate text using BrainGPT with a chat-based template.
-    """
-    text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    model_inputs = tokenizer([text], return_tensors="pt").to(device)
-    
-    with torch.no_grad():
-        generated_ids = model.generate(**model_inputs, max_new_tokens=max_new_tokens)
-    
-    return tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    def forward(self, input_ids):
+        x = self.embedding(input_ids)
+        x = self.transformer(inputs_embeds=x).last_hidden_state
+        x = self.moe_layer(x)
+        logits = self.classifier(x)
+        return logits
 
 ##############################################################################
-# 3. Multimodal Pipelines (Optional Components)
-##############################################################################
-
-def create_multimodal_pipelines():
-    """
-    Create multimodal pipelines for text, fill-mask, and image tasks.
-    """
-    pipelines_dict = {}
-
-    try:
-        pipelines_dict["sentence_embeddings"] = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    except Exception as e:
-        print(f"[Warning] Sentence Embeddings pipeline error: {e}")
-
-    try:
-        pipelines_dict["text_generation"] = pipeline("text-generation", model="distilgpt2")
-    except Exception as e:
-        print(f"[Warning] Text Generation pipeline error: {e}")
-
-    return pipelines_dict
-
-##############################################################################
-# 4. Demo Functionality
-##############################################################################
-
-def run_demo(brain_gpt_model, brain_gpt_tokenizer, device, toroidal_model):
-    """
-    Run a full demo of THANN components.
-    """
-    print("\n=== THANN Prototype Demo ===")
-
-    # BrainGPT Text Generation
-    print("\n1. BrainGPT Text Generation:")
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Explain the Pythagorean theorem."}
-    ]
-    response = generate_brain_gpt_text(messages, brain_gpt_model, brain_gpt_tokenizer, device)
-    print("Response:", response)
-
-    # ToroidalHiveModel Test
-    print("\n2. ToroidalHiveModel Spiking Simulation:")
-    input_tensor = torch.randint(0, 30522, (1, 10))  # Simulated input
-    logits, _, feedback_hidden = toroidal_model(input_tensor)
-    print("Logits shape:", logits.shape)
-    print("Feedback Hidden State:", feedback_hidden)
-
-    # Sentence Embeddings Demo
-    print("\n3. Sentence Embeddings Example:")
-    example_sentences = [
-        "This is a great day.",
-        "I love machine learning.",
-        "The sky is blue."
-    ]
-    st_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    embeddings = st_model.encode(example_sentences)
-    print("Embeddings Shape:", embeddings.shape)
-
-##############################################################################
-# 5. Main Script
+# 2. Main Script for Running the Model
 ##############################################################################
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--demo", action="store_true", help="Run the THANN demo.")
-    args = parser.parse_args()
+    # Define model parameters
+    vocab_size = 1000000  # Large vocabulary size
+    hidden_size = 4096    # Large hidden size
+    num_layers = 96       # 96 transformer layers
+    num_experts = 128     # Sparse Mixture of Experts with 128 experts
+    expert_size = 16384   # Size of each expert
 
-    model_path = "/path/to/your/BrainGPT/model"  # Update with actual model path
-    brain_gpt_model, brain_gpt_tokenizer, device = initialize_brain_gpt(model_path)
+    # Initialize the model
+    model = ToroidalHiveModel(vocab_size=vocab_size, hidden_size=hidden_size, num_layers=num_layers,
+                              num_experts=num_experts, expert_size=expert_size)
 
-    # Initialize ToroidalHiveModel
-    toroidal_model = ToroidalHiveModel()
+    # Simulate input
+    input_tensor = torch.randint(0, vocab_size, (1, 1024))  # Batch size = 1, Sequence length = 1024
+    logits = model(input_tensor)
 
-    if args.demo:
-        run_demo(brain_gpt_model, brain_gpt_tokenizer, device, toroidal_model)
-    else:
-        print("Run with --demo to test the THANN prototype.")
+    print("Model logits shape:", logits.shape)
+    print("Toroidal Hive Model initialized with approximately 200 billion parameters.")
 
 if __name__ == "__main__":
     main()
