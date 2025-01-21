@@ -69,7 +69,7 @@ To integrate your custom BrainGPT model:
    model_path = "/path/to/your/BrainGPT/model"
    ```
 2. Test text generation:
-   ```python
+   ```bash
    python thann.py --demo
    ```
 
