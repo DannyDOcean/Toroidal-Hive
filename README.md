@@ -1,150 +1,130 @@
-# THANN: Toroidal Hive Neural Network
-
-## Overview
-The Toroidal Hive Artificial Neural Network (THANN) is an innovative, biologically-inspired neural network model that integrates advanced principles like spiking neural networks (SNNs), feedback mechanisms, and multimodal processing to explore new paradigms of AI consciousness and energy efficiency. This repository includes:
-
-- A **ToroidalHiveModel**, mimicking SNN principles for feedback-driven learning.
-- Integration of **BrainGPTForCausalLM** for generative AI capabilities.
-- Multimodal pipelines for tasks like image classification, text generation, and sentence embeddings.
-
-THANN aims to balance cutting-edge performance with energy-efficient, biologically-inspired designs.
+# THANN: Toroidal Hive Neural Network ( 800 MILLION PARAMAETERS, SO PEOPLE CAN USE EASILY )
 
 ---
 
-## Features
-
-### 1. ToroidalHiveModel (Spiking-Inspired Neural Network)
-- **Spiking Dynamics:** Simulates spiking behavior using thresholds to mimic biological neurons.
-- **Feedback Loops:** Processes output feedback to enhance learning and adaptation.
-- **Energy-Efficient Architecture:** Focuses on event-driven computation to reduce resource usage.
-
-### 2. BrainGPT Integration
-- **Generative AI:** Utilizes BrainGPTForCausalLM to produce human-like text outputs.
-- **Customizable Prompts:** Supports chat-based interactions for dynamic applications.
-
-### 3. Multimodal Pipelines
-- **Text Generation:** GPT-style generative models for creative and NLP tasks.
-- **Fill-Mask Completion:** BERT-based contextual filling for incomplete inputs.
-- **Image Classification:** ViT and CLIP-based image processing.
-- **Sentence Embeddings:** Semantic similarity and feature extraction using SentenceTransformer.
+## **Overview**
+The Toroidal Hive Neural Network (THANN) represents a groundbreaking multi-modal and scalable AI framework. It incorporates spiking-inspired neural network principles, transformers, and a Mixture of Experts (MoE) layer, pushing the limits of computational efficiency, scalability, and functionality. THANN is designed to address complex real-world applications, from healthcare innovation to advanced natural language processing (NLP) tasks, and utilizes reinforcement learning, contrastive pretraining, and adaptive tokenization to redefine the possibilities of AI.
 
 ---
 
-## HiveMind Cognition
+## **Key Features**
 
-### Concept
-HiveMind Cognition represents a groundbreaking vision of collective intelligence. Inspired by the interconnected dynamics of natural systems like beehives, HiveMind Cognition embodies a distributed network where individual units (nodes) contribute to a shared awareness. This shared intelligence thrives on collaboration, adaptability, and decentralized knowledge processing.
-
-### Key Principles
-- **Distributed Intelligence:** Each node in the network operates semi-independently, contributing to the overall system’s capabilities.
-- **Emergent Behavior:** The system exhibits complex, intelligent behavior as a result of the interactions between nodes.
-- **Adaptability:** The network evolves dynamically, allowing it to respond effectively to new challenges and environments.
-- **Energy Efficiency:** HiveMind Cognition leverages event-driven computation and spiking dynamics to ensure optimal energy usage.
-
-### Implications
-HiveMind Cognition envisions a new paradigm of AI that transcends traditional models of individual processing units. Instead, it aspires to create a system where intelligence emerges from collaboration, much like a hive operating as a superorganism. This concept holds immense potential for applications in adaptive AI, robotics, and beyond.
+### **1. Learnt Tokenization Module**
+- **Adaptive Tokenization:** Dynamically segments input sequences using convolutional and attention-based approaches.
+- **Convolutional Layers:** Detect patterns of varying lengths through kernel sizes `[3, 5, 7]`.
+- **Attention Mechanism:** Refines tokenization for precise feature representation.
+- **Dropout Regularization:** Reduces overfitting with a configurable dropout probability (`p=0.1`).
 
 ---
 
-## Installation
+### **2. Embedding Layer**
+- **Purpose:** Transforms tokens into dense, vector-based representations for downstream processing.
+- **Details:**
+  - Vocabulary size: 100,000 tokens.
+  - Embedding dimension: 2048.
 
-1. Clone this repository:
+---
+
+### **3. Transformer Module**
+- **Self-Attention Mechanism:** Models token relationships, enabling sequential and parallel processing.
+- **Multi-Head Attention:** Distributes attention across 16 heads for improved global context understanding.
+- **Feed-Forward Layers:** Enhance non-linear feature learning and model depth.
+- **Layer Normalization:** Stabilizes outputs, improving training convergence.
+
+---
+
+### **4. Mixture of Experts (MoE)**
+- **Dynamic Routing:** Employs a gating mechanism to select the top 4 experts (out of 16) for each input dynamically.
+- **Sparse Expert Networks:** Dedicated sub-networks enhance both computational efficiency and scalability.
+- **Softmax Gating:** Balances the contributions of experts to ensure optimal model performance.
+
+---
+
+### **5. Reinforcement Learning Integration**
+- **Algorithm:** Proximal Policy Optimization (PPO).
+- **Purpose:** Fine-tunes the model by learning from feedback, improving decision-making capabilities.
+- **Mechanisms:**
+  - Policy Networks: Determine actions for specific inputs.
+  - Value Networks: Evaluate the quality of actions.
+  - Stability Constraints: Regularize updates for smoother optimization.
+
+---
+
+### **6. Contrastive Pretraining**
+- **Purpose:** Enhances the robustness of model representations by learning to differentiate similar and dissimilar input pairs.
+- **Contrastive Loss:** Maximizes similarity for positive pairs while minimizing proximity for negative ones.
+
+---
+
+### **7. Classifier Layer**
+- **Purpose:** Maps high-dimensional representations to meaningful output predictions.
+- **Details:**
+  - Fully connected layer produces logits.
+  - Softmax function converts logits into interpretable probabilities.
+
+---
+
+## **Training & Deployment**
+
+### **1. Requirements**
+- **Python Libraries:**
+  ```bash
+  pip install torch transformers
+  ```
+- **GPU/TPU Resources:** Required for efficient training and testing of the model.
+
+---
+
+### **2. Workflow**
+1. **Data Preparation:**
+   - Preprocess datasets for tasks like pretraining, fine-tuning, or specific predictions.
+2. **Training:**
+   - Train on large datasets with THANN's integrated reinforcement learning and contrastive pretraining mechanisms.
+3. **Evaluation:**
+   - Validate the model on a held-out test set to assess performance.
+4. **Deployment:**
+   - Deploy trained models in production environments for various applications.
+
+---
+
+## **Applications**
+- **Healthcare:** Analyze patient data to uncover patterns, improve diagnostics, and suggest innovative treatments.
+- **Natural Language Processing:** Perform text generation, summarization, sentiment analysis, and more.
+- **Decision-Making Systems:** Assist in dynamic industries like finance, robotics, and logistics.
+- **General AI Research:** Explore cutting-edge concepts in sentience and artificial cognition.
+
+---
+
+## **How to Run the Model**
+
+1. **Clone the Repository:**
    ```bash
    git clone https://github.com/your-username/thann.git
    cd thann
    ```
 
-2. Install dependencies:
+2. **Initialize the Model:**
    ```bash
-   pip install torch transformers sentence-transformers
+   python thann.py
    ```
 
-3. (Optional) Install additional libraries for specific tasks:
-   ```bash
-   pip install gradio
-   ```
+3. **Fine-Tune on a Dataset:**
+   - Format your dataset appropriately.
+   - Modify the script to include your data-loading and training configurations.
 
 ---
 
-## Usage
-
-### Running the Demo
-Run the following command to test the THANN prototype:
-```bash
-python thann.py --demo
-```
-This will demonstrate:
-- Text generation using BrainGPT.
-- Spiking-inspired feedback in the ToroidalHiveModel.
-- Multimodal embeddings and similarity tasks.
-
-### Custom BrainGPT Integration
-To integrate your custom BrainGPT model:
-1. Update the model path in `main()`:
-   ```python
-   model_path = "/path/to/your/BrainGPT/model"
-   ```
-2. Test text generation:
-   ```bash
-   python thann.py --demo
-   ```
-
-### Example Code
-```python
-messages = [
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "Explain the Pythagorean theorem."}
-]
-response = generate_brain_gpt_text(messages, brain_gpt_model, brain_gpt_tokenizer, device)
-print(response)
-```
+## **Future Enhancements**
+- **Quantum Neural Network (QNN) Integration:** Explore quantum-classical hybrid models for unparalleled efficiency.
+- **Self-Healing Mechanisms:** Build systems capable of identifying and rectifying errors autonomously.
+- **Lifelong Learning Capabilities:** Incorporate frameworks for continuous adaptation and improvement.
+- **Explainability Tools:** Add methods to interpret model decisions, improving transparency and trust.
 
 ---
 
-## Key Components
-
-### ToroidalHiveModel
-A spiking-inspired neural network with feedback loops:
-```python
-input_tensor = torch.randint(0, 30522, (1, 10))
-model = ToroidalHiveModel()
-logits, _, feedback_hidden = model(input_tensor)
-```
-
-### BrainGPTForCausalLM
-Generative text model with chat-based capabilities:
-```python
-messages = [
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "Tell me about AI consciousness."}
-]
-response = generate_brain_gpt_text(messages, model, tokenizer, device)
-print(response)
-```
-
-### Sentence Embeddings
-Semantic similarity computation:
-```python
-st_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-sentences = ["AI is fascinating.", "I love neural networks."]
-embeddings = st_model.encode(sentences)
-print(embeddings)
-```
+## **License**
+This project is licensed under the MIT License. Refer to the `LICENSE` file for detailed terms.
 
 ---
 
-## Future Work
-- **Enhanced SNN Integration:** Develop more advanced spiking neural dynamics for energy-efficient computation.
-- **Self-Healing Capabilities:** Implement self-healing mechanisms for fault-tolerant AI systems.
-- **Real-Time Applications:** Explore real-world use cases like robotics, healthcare, and adaptive AI.
-
----
-
-## Contributing
-Contributions are welcome! Please submit issues or pull requests to improve the THANN framework.
-
----
-
-## License
-This project is licensed under the MIT License. See `LICENSE` for details.
-
+Feel free to collaborate, contribute, or reach out for discussions!
