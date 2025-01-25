@@ -13,12 +13,14 @@ class LearntTokenization(nn.Module):
     def __init__(self, input_dim, hidden_size, kernel_sizes):
         super(LearntTokenization, self).__init__()
         self.convs = nn.ModuleList([nn.Conv1d(input_dim, hidden_size, k) for k in kernel_sizes])
+        self.dropout = nn.Dropout(p=0.1)  # Added dropout for generalization
         self.attention = nn.MultiheadAttention(embed_dim=hidden_size, num_heads=4)
 
     def forward(self, x):
         # Apply convolution for tokenization
         x = x.transpose(1, 2)  # Switch to (batch, features, seq_length) for Conv1d
         conv_outputs = [torch.relu(conv(x)) for conv in self.convs]
+        conv_outputs = [self.dropout(conv) for conv in conv_outputs]  # Apply dropout after convolutions
         tokenized = torch.cat(conv_outputs, dim=1)  # Concatenate features
         tokenized = tokenized.transpose(1, 2)  # Switch back to (batch, seq_length, features)
 
@@ -35,7 +37,7 @@ class ToroidalHiveModel(nn.Module):
     """
     A scaled Toroidal Hive model with learnt tokenization and Mixture of Experts.
     """
-    def __init__(self, vocab_size=1000000, hidden_size=4096, num_layers=96, num_experts=128, expert_size=16384):
+    def __init__(self, vocab_size=100000, hidden_size=2048, num_layers=24, num_experts=16, expert_size=8192):
         super(ToroidalHiveModel, self).__init__()
         self.tokenizer = LearntTokenization(input_dim=hidden_size, hidden_size=hidden_size, kernel_sizes=[3, 5, 7])
         self.embedding = nn.Embedding(vocab_size, hidden_size)
@@ -43,7 +45,7 @@ class ToroidalHiveModel(nn.Module):
             "vocab_size": vocab_size,
             "n_embd": hidden_size,
             "n_layer": num_layers,
-            "n_head": 32,
+            "n_head": 16,  # Adjusted number of attention heads
             "n_inner": hidden_size * 4,  # Feed-forward size
         })
         self.moe_layer = MixtureOfExperts(num_experts=num_experts, hidden_size=hidden_size, expert_size=expert_size)
@@ -88,7 +90,7 @@ class MixtureOfExperts(nn.Module):
 
     def forward(self, x):
         gate_scores = torch.softmax(self.gating(x), dim=-1)
-        top_experts = gate_scores.topk(2, dim=-1)  # Select top 2 experts per input
+        top_experts = gate_scores.topk(4, dim=-1)  # Select top 4 experts per input
         outputs = 0
         for i, expert in enumerate(self.experts):
             expert_output = expert(x)
@@ -100,21 +102,22 @@ class MixtureOfExperts(nn.Module):
 ##############################################################################
 
 def main():
-    vocab_size = 1000000  # Large vocabulary size
-    hidden_size = 4096    # Large hidden size
-    num_layers = 96       # 96 transformer layers
-    num_experts = 128     # Sparse Mixture of Experts with 128 experts
-    expert_size = 16384   # Size of each expert
+    vocab_size = 100000  # Adjusted vocabulary size
+    hidden_size = 2048   # Reduced hidden size
+    num_layers = 24      # Reduced transformer layers
+    num_experts = 16     # Fewer experts
+    expert_size = 8192   # Adjusted expert size
 
     model = ToroidalHiveModel(vocab_size=vocab_size, hidden_size=hidden_size, num_layers=num_layers,
                               num_experts=num_experts, expert_size=expert_size)
 
     # Simulate input
-    input_tensor = torch.randint(0, vocab_size, (1, 1024))  # Batch size = 1, Sequence length = 1024
+    input_tensor = torch.randint(0, vocab_size, (1, 512))  # Batch size = 1, Sequence length = 512
     logits = model(input_tensor)
 
+    print("Toroidal Hive Model initialized with approximately 800 million parameters.")
     print("Model logits shape:", logits.shape)
-    print("Toroidal Hive Model initialized with learnt tokenization and approximately 200 billion parameters.")
 
 if __name__ == "__main__":
     main()
+
