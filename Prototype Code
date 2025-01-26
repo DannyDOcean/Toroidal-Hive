@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import GPT2Model, AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
 ##############################################################################
 # 1. Learnt Tokenization Module
@@ -13,14 +13,14 @@ class LearntTokenization(nn.Module):
     def __init__(self, input_dim, hidden_size, kernel_sizes):
         super(LearntTokenization, self).__init__()
         self.convs = nn.ModuleList([nn.Conv1d(input_dim, hidden_size, k) for k in kernel_sizes])
-        self.dropout = nn.Dropout(p=0.1)  # Added dropout for generalization
+        self.dropout = nn.Dropout(p=0.1)
         self.attention = nn.MultiheadAttention(embed_dim=hidden_size, num_heads=4)
 
     def forward(self, x):
         # Apply convolution for tokenization
         x = x.transpose(1, 2)  # Switch to (batch, features, seq_length) for Conv1d
         conv_outputs = [torch.relu(conv(x)) for conv in self.convs]
-        conv_outputs = [self.dropout(conv) for conv in conv_outputs]  # Apply dropout after convolutions
+        conv_outputs = [self.dropout(conv) for conv in conv_outputs]
         tokenized = torch.cat(conv_outputs, dim=1)  # Concatenate features
         tokenized = tokenized.transpose(1, 2)  # Switch back to (batch, seq_length, features)
 
@@ -30,47 +30,41 @@ class LearntTokenization(nn.Module):
         return tokenized.transpose(0, 1)  # Back to (batch, seq_length, features)
 
 ##############################################################################
-# 2. Toroidal Hive Model with Integrated Tokenization and MoE
+# 2. Toroidal Hive Model with Integrated Tokenization and Mixture of Agents
 ##############################################################################
 
 class ToroidalHiveModel(nn.Module):
     """
-    A scaled Toroidal Hive model with learnt tokenization and Mixture of Experts.
+    A scaled Toroidal Hive model with learnt tokenization and Mixture of Agents.
     """
-    def __init__(self, vocab_size=100000, hidden_size=2048, num_layers=24, num_experts=16, expert_size=8192):
+    def __init__(self, vocab_size=100000, hidden_size=2048, num_layers=24, num_agents=16, agent_size=8192):
         super(ToroidalHiveModel, self).__init__()
-        self.tokenizer = LearntTokenization(input_dim=hidden_size, hidden_size=hidden_size, kernel_sizes=[3, 5, 7])
+        self.tokenizer = LearntTokenization(input_dim=hidden_size, hidden_size=hidden_size, kernel_sizes=[3, 3, 3])
         self.embedding = nn.Embedding(vocab_size, hidden_size)
-        self.transformer = GPT2Model.from_pretrained("gpt2", config={
-            "vocab_size": vocab_size,
-            "n_embd": hidden_size,
-            "n_layer": num_layers,
-            "n_head": 16,  # Adjusted number of attention heads
-            "n_inner": hidden_size * 4,  # Feed-forward size
-        })
-        self.moe_layer = MixtureOfExperts(num_experts=num_experts, hidden_size=hidden_size, expert_size=expert_size)
+        self.transformer = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.3-70B-Instruct")
+        self.moa_layer = MixtureOfAgents(num_agents=num_agents, hidden_size=hidden_size, agent_size=agent_size)
         self.classifier = nn.Linear(hidden_size, vocab_size)
 
     def forward(self, input_ids):
         x = self.embedding(input_ids)
         x = self.tokenizer(x)  # Apply learnt tokenization
         x = self.transformer(inputs_embeds=x).last_hidden_state
-        x = self.moe_layer(x)
+        x = self.moa_layer(x)
         logits = self.classifier(x)
         return logits
 
 ##############################################################################
-# 3. Mixture of Experts
+# 3. Mixture of Agents
 ##############################################################################
 
-class SparseExpert(nn.Module):
+class SingleAgent(nn.Module):
     """
-    A single expert used in the Mixture of Experts (MoE) layer.
+    A single agent used in the Mixture of Agents (MoA) layer.
     """
-    def __init__(self, hidden_size, expert_size):
-        super(SparseExpert, self).__init__()
-        self.fc1 = nn.Linear(hidden_size, expert_size)
-        self.fc2 = nn.Linear(expert_size, hidden_size)
+    def __init__(self, hidden_size, agent_size):
+        super(SingleAgent, self).__init__()
+        self.fc1 = nn.Linear(hidden_size, agent_size)
+        self.fc2 = nn.Linear(agent_size, hidden_size)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
@@ -78,46 +72,60 @@ class SparseExpert(nn.Module):
         return x
 
 
-class MixtureOfExperts(nn.Module):
+class MixtureOfAgents(nn.Module):
     """
-    A sparse Mixture of Experts (MoE) layer for scalability.
+    A sparse Mixture of Agents (MoA) layer for scalability.
     """
-    def __init__(self, num_experts, hidden_size, expert_size):
-        super(MixtureOfExperts, self).__init__()
-        self.num_experts = num_experts
-        self.experts = nn.ModuleList([SparseExpert(hidden_size, expert_size) for _ in range(num_experts)])
-        self.gating = nn.Linear(hidden_size, num_experts)
+    def __init__(self, num_agents, hidden_size, agent_size):
+        super(MixtureOfAgents, self).__init__()
+        self.num_agents = num_agents
+        self.agents = nn.ModuleList([SingleAgent(hidden_size, agent_size) for _ in range(num_agents)])
+        self.gating = nn.Linear(hidden_size, num_agents)
 
     def forward(self, x):
         gate_scores = torch.softmax(self.gating(x), dim=-1)
-        top_experts = gate_scores.topk(4, dim=-1)  # Select top 4 experts per input
+        top_agents = gate_scores.topk(4, dim=-1)  # Select top 4 agents per input
         outputs = 0
-        for i, expert in enumerate(self.experts):
-            expert_output = expert(x)
-            outputs += gate_scores[:, i:i+1] * expert_output
+        for i, agent in enumerate(self.agents):
+            agent_output = agent(x)
+            outputs += gate_scores[:, i:i+1] * agent_output
         return outputs
 
 ##############################################################################
-# 4. Main Script for Running the Model
+# 4. Prompting Mechanism
+##############################################################################
+
+def prompt_model(model, tokenizer, prompt):
+    """
+    Generate a response from the model given a natural language prompt.
+    """
+    inputs = tokenizer(prompt, return_tensors="pt")
+    outputs = model.generate(inputs["input_ids"], max_new_tokens=50)
+    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return response
+
+##############################################################################
+# 5. Main Script for Running the Model
 ##############################################################################
 
 def main():
     vocab_size = 100000  # Adjusted vocabulary size
     hidden_size = 2048   # Reduced hidden size
     num_layers = 24      # Reduced transformer layers
-    num_experts = 16     # Fewer experts
-    expert_size = 8192   # Adjusted expert size
+    num_agents = 16      # Number of agents
+    agent_size = 8192    # Adjusted agent size
 
     model = ToroidalHiveModel(vocab_size=vocab_size, hidden_size=hidden_size, num_layers=num_layers,
-                              num_experts=num_experts, expert_size=expert_size)
+                              num_agents=num_agents, agent_size=agent_size)
 
-    # Simulate input
-    input_tensor = torch.randint(0, vocab_size, (1, 512))  # Batch size = 1, Sequence length = 512
-    logits = model(input_tensor)
+    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.3-70B-Instruct")
 
-    print("Toroidal Hive Model initialized with approximately 800 million parameters.")
-    print("Model logits shape:", logits.shape)
+    # Test the prompting mechanism
+    prompt = "Explain the significance of self-healing in AI."
+    response = prompt_model(model.transformer, tokenizer, prompt)
+    print("Model Response:", response)
 
 if __name__ == "__main__":
     main()
+
 
