@@ -1,130 +1,100 @@
-# THANN: Toroidal Hive Neural Network ( 800 MILLION PARAMAETERS, SO PEOPLE CAN USE EASILY )
+# Toroidal Hive Neural Network (THNN)
+
+## Overview
+
+The **Toroidal Hive Neural Network (THNN)** is an advanced multi-modal AI model designed for scalability, adaptability, and real-world applications. Built with a LLaMA transformer backbone and an innovative **Mixture of Agents (MoA)** architecture, THNN integrates state-of-the-art techniques to create a self-healing, self-organizing, and self-supervising system. It aims to push the boundaries of artificial intelligence, addressing complex problems in healthcare, natural language processing, and decision-making.
 
 ---
 
-## **Overview**
-The Toroidal Hive Neural Network (THANN) represents a groundbreaking multi-modal and scalable AI framework. It incorporates spiking-inspired neural network principles, transformers, and a Mixture of Experts (MoE) layer, pushing the limits of computational efficiency, scalability, and functionality. THANN is designed to address complex real-world applications, from healthcare innovation to advanced natural language processing (NLP) tasks, and utilizes reinforcement learning, contrastive pretraining, and adaptive tokenization to redefine the possibilities of AI.
+## Key Features
+
+### 1. **Learnt Tokenization Module**
+- **Dynamic Tokenization**: Extracts meaningful features using adaptive convolution and multi-head attention.
+- **Convolution Layers**: Employ kernel sizes [3, 3, 3] for pattern detection across varying granularity.
+- **Attention Mechanism**: Refines tokenized sequences to enhance downstream processing.
+- **Dropout**: Configured at 10% to prevent overfitting and boost generalization.
+
+### 2. **Embedding Layer**
+- **Purpose**: Converts input tokens into dense vector representations.
+- **Details**: Supports a vocabulary of 100,000 tokens, with embeddings in 2,048 dimensions.
+
+### 3. **Transformer Backbone**
+- **Model**: LLaMA-3.3-70B-Instruct.
+- **Capabilities**: Processes sequential and parallel data using:
+  - **Self-Attention**: Captures relationships between tokens globally.
+  - **Feed-Forward Networks**: Adds complexity and depth to the representations.
+  - **Layer Normalization**: Stabilizes training for better convergence.
+
+### 4. **Mixture of Agents (MoA)**
+- **Purpose**: Dynamically selects specialized agents for task-specific processing.
+- **Mechanism**: Activates the top 4 agents (out of 16) per input, optimizing both efficiency and performance.
+- **Role**: Enhances task adaptability while minimizing computational load.
+
+### 5. **Classifier Layer**
+- **Purpose**: Outputs actionable predictions by mapping internal representations to probabilities.
+- **Details**: Fully connected layer combined with a softmax function for probabilistic output.
+
+### 6. **Integrated Algorithms**
+- **Reinforcement Learning (PPO)**: Enables adaptive learning through trial and error.
+- **Contrastive Learning**: Strengthens representation by distinguishing between similar and dissimilar data pairs.
+- **Self-Supervised Learning**: Leverages unlabeled data to build robust internal features.
 
 ---
 
-## **Key Features**
-
-### **1. Learnt Tokenization Module**
-- **Adaptive Tokenization:** Dynamically segments input sequences using convolutional and attention-based approaches.
-- **Convolutional Layers:** Detect patterns of varying lengths through kernel sizes `[3, 5, 7]`.
-- **Attention Mechanism:** Refines tokenization for precise feature representation.
-- **Dropout Regularization:** Reduces overfitting with a configurable dropout probability (`p=0.1`).
+## Applications
+- **Healthcare**: Detect diseases, analyze medical data, and suggest innovative treatments.
+- **Natural Language Processing**: Generate human-like text, summarize content, and perform sentiment analysis.
+- **Decision-Making Systems**: Assist in real-time decisions in fields like finance, logistics, and robotics.
+- **AI Research**: Explore self-awareness, cognition, and the ethical boundaries of AI systems.
 
 ---
 
-### **2. Embedding Layer**
-- **Purpose:** Transforms tokens into dense, vector-based representations for downstream processing.
-- **Details:**
-  - Vocabulary size: 100,000 tokens.
-  - Embedding dimension: 2048.
+## Training & Deployment
 
----
-
-### **3. Transformer Module**
-- **Self-Attention Mechanism:** Models token relationships, enabling sequential and parallel processing.
-- **Multi-Head Attention:** Distributes attention across 16 heads for improved global context understanding.
-- **Feed-Forward Layers:** Enhance non-linear feature learning and model depth.
-- **Layer Normalization:** Stabilizes outputs, improving training convergence.
-
----
-
-### **4. Mixture of Experts (MoE)**
-- **Dynamic Routing:** Employs a gating mechanism to select the top 4 experts (out of 16) for each input dynamically.
-- **Sparse Expert Networks:** Dedicated sub-networks enhance both computational efficiency and scalability.
-- **Softmax Gating:** Balances the contributions of experts to ensure optimal model performance.
-
----
-
-### **5. Reinforcement Learning Integration**
-- **Algorithm:** Proximal Policy Optimization (PPO).
-- **Purpose:** Fine-tunes the model by learning from feedback, improving decision-making capabilities.
-- **Mechanisms:**
-  - Policy Networks: Determine actions for specific inputs.
-  - Value Networks: Evaluate the quality of actions.
-  - Stability Constraints: Regularize updates for smoother optimization.
-
----
-
-### **6. Contrastive Pretraining**
-- **Purpose:** Enhances the robustness of model representations by learning to differentiate similar and dissimilar input pairs.
-- **Contrastive Loss:** Maximizes similarity for positive pairs while minimizing proximity for negative ones.
-
----
-
-### **7. Classifier Layer**
-- **Purpose:** Maps high-dimensional representations to meaningful output predictions.
-- **Details:**
-  - Fully connected layer produces logits.
-  - Softmax function converts logits into interpretable probabilities.
-
----
-
-## **Training & Deployment**
-
-### **1. Requirements**
-- **Python Libraries:**
+### **Requirements**
+- Python Libraries: Install required dependencies using:
   ```bash
   pip install torch transformers
   ```
-- **GPU/TPU Resources:** Required for efficient training and testing of the model.
+- Hardware: Use GPUs or TPUs for efficient training and testing.
+
+### **Workflow**
+1. **Data Preparation**: Format datasets for pretraining or fine-tuning.
+2. **Training**: Use reinforcement and contrastive learning to optimize performance.
+3. **Evaluation**: Validate on test datasets.
+4. **Deployment**: Export the trained model for production use.
+
+### **Run the Model**
+Clone the repository:
+```bash
+git clone https://github.com/your-username/toroidal-hive.git
+cd toroidal-hive
+```
+
+Initialize the model:
+```bash
+python toroidal_hive.py
+```
+
+Prompt the model:
+```python
+from transformers import pipeline
+pipe = pipeline("text-generation", model="meta-llama/Llama-3.3-70B-Instruct")
+response = pipe("Explain the importance of AI in healthcare.")
+print(response)
+```
 
 ---
 
-### **2. Workflow**
-1. **Data Preparation:**
-   - Preprocess datasets for tasks like pretraining, fine-tuning, or specific predictions.
-2. **Training:**
-   - Train on large datasets with THANN's integrated reinforcement learning and contrastive pretraining mechanisms.
-3. **Evaluation:**
-   - Validate the model on a held-out test set to assess performance.
-4. **Deployment:**
-   - Deploy trained models in production environments for various applications.
+## Future Enhancements
+- **Quantum Neural Networks**: Integrate quantum-classical systems for improved efficiency.
+- **Self-Healing Mechanisms**: Allow the model to identify and correct errors autonomously.
+- **Lifelong Learning**: Enable continuous adaptation to new data.
+- **Explainability Tools**: Enhance interpretability to foster trust and transparency.
 
 ---
 
-## **Applications**
-- **Healthcare:** Analyze patient data to uncover patterns, improve diagnostics, and suggest innovative treatments.
-- **Natural Language Processing:** Perform text generation, summarization, sentiment analysis, and more.
-- **Decision-Making Systems:** Assist in dynamic industries like finance, robotics, and logistics.
-- **General AI Research:** Explore cutting-edge concepts in sentience and artificial cognition.
+## License
+This project is licensed under the MIT License. See `LICENSE` for details.
 
----
-
-## **How to Run the Model**
-
-1. **Clone the Repository:**
-   ```bash
-   git clone https://github.com/your-username/thann.git
-   cd thann
-   ```
-
-2. **Initialize the Model:**
-   ```bash
-   python thann.py
-   ```
-
-3. **Fine-Tune on a Dataset:**
-   - Format your dataset appropriately.
-   - Modify the script to include your data-loading and training configurations.
-
----
-
-## **Future Enhancements**
-- **Quantum Neural Network (QNN) Integration:** Explore quantum-classical hybrid models for unparalleled efficiency.
-- **Self-Healing Mechanisms:** Build systems capable of identifying and rectifying errors autonomously.
-- **Lifelong Learning Capabilities:** Incorporate frameworks for continuous adaptation and improvement.
-- **Explainability Tools:** Add methods to interpret model decisions, improving transparency and trust.
-
----
-
-## **License**
-This project is licensed under the MIT License. Refer to the `LICENSE` file for detailed terms.
-
----
-
-Feel free to collaborate, contribute, or reach out for discussions!
+For questions or collaborations, feel free to reach out!
